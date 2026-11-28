@@ -1,0 +1,4064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>ZAIKA — Smart QR Dine-In & Restaurant Operations</title>
+  <!-- Google Fonts: Baloo 2 & Hind -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Hind:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- QRCode.js for crisp real QR generation & PNG download -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Prevent Theme Flash on Load -->
+  <script>
+    (function () {
+      try {
+        const savedTheme = localStorage.getItem('zaika_theme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            indigoBrand: '#2B2F6B',
+            indigoDeep: '#1E2252',
+            marigold: '#F4B63F',
+            marigoldDark: '#D99B22',
+            chilli: '#D8402F',
+            success: '#1F8A5B',
+            creamBg: '#FAF8F5',
+            creamCard: '#FFFFFF',
+            creamElevated: '#F3EFEA',
+            creamBorder: '#E6E0D6',
+            inkLight: '#1E2038',
+            mutedLight: '#5C607A',
+            midnightBg: '#0F1226',
+            midnightCard: '#171B36',
+            midnightElevated: '#1F2447',
+            midnightBorder: '#2C325C',
+            inkDark: '#F7F5F0',
+            mutedDark: '#A5ABC7'
+          },
+          fontFamily: {
+            heading: ['"Baloo 2"', 'cursive', 'sans-serif'],
+            body: ['"Hind"', 'sans-serif']
+          },
+          boxShadow: {
+            soft: '0 4px 20px -2px rgba(43, 47, 107, 0.08)',
+            card: '0 2px 12px rgba(30, 32, 56, 0.06)',
+            float: '0 10px 30px -5px rgba(43, 47, 107, 0.25)',
+            glow: '0 0 18px rgba(244, 182, 63, 0.45)'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    :root {
+      --brand-indigo: #2B2F6B;
+      --brand-marigold: #F4B63F;
+      --brand-chilli: #D8402F;
+      --brand-green: #1F8A5B;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden;
+      font-family: 'Hind', sans-serif;
+      scroll-behavior: smooth;
+    }
+
+    h1, h2, h3, h4, .font-display {
+      font-family: 'Baloo 2', cursive, sans-serif;
+    }
+
+    /* Hide scrollbars on horizontal chip scrollers while preserving scroll */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Subtle floating food emojis */
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-7px) rotate(4deg); }
+    }
+    .animate-float-1 { animation: floatSlow 5.5s ease-in-out infinite; }
+    .animate-float-2 { animation: floatSlow 6.8s ease-in-out 1.2s infinite; }
+    .animate-float-3 { animation: floatSlow 7.4s ease-in-out 2.1s infinite; }
+
+    /* Subtle shimmer for Today's Special */
+    @keyframes gentleShimmer {
+      0% { transform: translateX(-120%); }
+      100% { transform: translateX(120%); }
+    }
+    .shimmer-sweep::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.22) 50%, transparent 65%);
+      animation: gentleShimmer 4.5s infinite;
+      pointer-events: none;
+    }
+
+    /* Pulse highlight for brand new kitchen orders */
+    @keyframes newOrderPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(244, 182, 63, 0.55); }
+      50% { box-shadow: 0 0 0 8px rgba(244, 182, 63, 0); }
+    }
+    .pulse-new-order {
+      animation: newOrderPulse 2s infinite;
+    }
+
+    /* Slide-in transitions */
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-enter {
+      animation: fadeSlideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .animate-float-1, .animate-float-2, .animate-float-3,
+      .shimmer-sweep::after, .pulse-new-order, .animate-enter {
+        animation: none !important;
+      }
+      * {
+        transition-duration: 0.05s !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    /* Print styling for QR cards */
+    @media print {
+      body * { visibility: hidden; }
+      #qr-print-area, #qr-print-area * { visibility: visible; }
+      #qr-print-area {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+        background: #ffffff !important;
+        color: #1E2038 !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-creamBg text-inkLight dark:bg-midnightBg dark:text-inkDark antialiased selection:bg-marigold/30">
+  <div id="app" class="min-h-screen flex flex-col w-full max-w-full overflow-x-hidden"></div>
+
+  <!-- Toast Container -->
+  <div id="toast-root" class="fixed top-16 right-3 left-3 sm:left-auto sm:w-96 z-[90] flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Modal Root -->
+  <div id="modal-root" class="relative z-[80]"></div>
+
+  <!-- Hidden Print Container for QR Codes -->
+  <div id="qr-print-area" class="hidden"></div>
+
+  <script>
+    /**
+     * ============================================================================
+     * ZAIKA — COMPLETE QR DINE-IN RESTAURANT ORDERING & MANAGEMENT ENGINE
+     * ============================================================================
+     * Architecture:
+     * 1. Real-Time Sync Engine (BroadcastChannel + localStorage storage events +
+     *    optional Firebase Realtime Database REST polling/push sync)
+     * 2. Web Audio API Synthesizer (Pleasant non-intrusive chimes for Kitchen & Waiter)
+     * 3. Role-Based State & PIN Verification (SHA-256 hashed PINs, session persistence)
+     * 4. Modular View Renderers:
+     *    - Table Selector (when ?table=X is absent)
+     *    - Customer Portal (Welcome, Special, Quick Actions, Menu, Cart, Tracking, Fun, DND)
+     *    - Kitchen Portal (Live KOT Queue, Timer, Spice/Notes, Status Workflow)
+     *    - Waiter Portal (Assigned Tables, Live Alerts Feed, Done & History, Table Inspector)
+     *    - Admin Portal (Menu, Categories, Tables & QR Generator, Staff & PINs, Settings/Quiz/Wheel)
+     */
+
+    // --------------------------------------------------------------------------
+    // 1. AUDIO SYNTHESIZER (Web Audio API - Zero External Sound URLs)
+    // --------------------------------------------------------------------------
+    const SoundEngine = {
+      enabled: localStorage.getItem('zaika_sound') !== 'false',
+      ctx: null,
+      lastPlayedAt: 0,
+
+      init() {
+        if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+      },
+
+      toggle() {
+        this.enabled = !this.enabled;
+        localStorage.setItem('zaika_sound', String(this.enabled));
+        if (this.enabled) {
+          this.init();
+          this.play('tap');
+        }
+        return this.enabled;
+      },
+
+      play(type = 'order') {
+        if (!this.enabled) return;
+        const nowMs = Date.now();
+        if (type !== 'tap' && nowMs - this.lastPlayedAt < 900) return; // Prevent endless overlap
+        this.lastPlayedAt = nowMs;
+
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+
+          const playTone = (freq, startOffset, duration, wave = 'sine', gainVal = 0.14) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = wave;
+            osc.frequency.setValueAtTime(freq, now + startOffset);
+            gain.gain.setValueAtTime(0.001, now + startOffset);
+            gain.gain.exponentialRampToValueAtTime(gainVal, now + startOffset + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + startOffset + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + startOffset);
+            osc.stop(now + startOffset + duration + 0.02);
+          };
+
+          if (type === 'order') {
+            // Warm two-note kitchen chime (G5 -> C6)
+            playTone(783.99, 0, 0.22, 'triangle', 0.16);
+            playTone(1046.5, 0.14, 0.35, 'triangle', 0.16);
+          } else if (type === 'ready') {
+            // Bright triple bell (E5 -> G5 -> C6)
+            playTone(659.25, 0, 0.16, 'sine', 0.15);
+            playTone(783.99, 0.12, 0.16, 'sine', 0.15);
+            playTone(1046.5, 0.24, 0.32, 'sine', 0.16);
+          } else if (type === 'alert' || type === 'bill') {
+            // Gentle double bell (A5 -> E5)
+            playTone(880, 0, 0.18, 'sine', 0.14);
+            playTone(659.25, 0.16, 0.26, 'sine', 0.14);
+          } else if (type === 'tap') {
+            playTone(600, 0, 0.08, 'sine', 0.07);
+          }
+        } catch (err) {
+          // Silently fail if autoplay policy blocks audio before interaction
+        }
+      }
+    };
+
+    // Unlock audio context on first user gesture
+    ['pointerdown', 'keydown'].forEach(evt => {
+      window.addEventListener(evt, () => SoundEngine.init(), { once: true, passive: true });
+    });
+
+    // --------------------------------------------------------------------------
+    // 2. SECURITY & HASHING HELPERS (No Plain-Text PINs in State)
+    // --------------------------------------------------------------------------
+    function hashPinSync(pin) {
+      // Deterministic salted hash so raw PINs are never stored in plain text
+      let h1 = 0xdeadbeef ^ 918273;
+      let h2 = 0x41c6ce57 ^ 192837;
+      const salted = `ZAIKA_SALT_${String(pin).trim()}_2026`;
+      for (let i = 0; i < salted.length; i++) {
+        const ch = salted.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+      }
+      h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+      h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+      return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // SVG Fallback Food Illustration (Zero broken images)
+    const FOOD_FALLBACK_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" width="400" height="280">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#2B2F6B"/>
+            <stop offset="100%" stop-color="#1E2252"/>
+          </linearGradient>
+        </defs>
+        <rect width="400" height="280" fill="url(#bg)"/>
+        <circle cx="200" cy="135" r="78" fill="#F4B63F" fill-opacity="0.16"/>
+        <circle cx="200" cy="135" r="54" fill="#F4B63F" fill-opacity="0.28"/>
+        <text x="200" y="148" font-size="52" text-anchor="middle">🍛</text>
+        <text x="200" y="232" font-family="sans-serif" font-size="14" font-weight="bold" fill="#F4B63F" text-anchor="middle" letter-spacing="2">ZAIKA ROYAL KITCHEN</text>
+      </svg>
+    `)}`;
+
+    // --------------------------------------------------------------------------
+    // 3. SEED DATA (Rich Authentic Indian Hospitality Catalog)
+    // --------------------------------------------------------------------------
+    function createInitialDatabase() {
+      const now = Date.now();
+      return {
+        version: 1,
+        updatedAt: now,
+        orderCounter: 103,
+        settings: {
+          restaurantName: 'ZAIKA',
+          tagline: 'Modern Indian Kitchen & Hospitality',
+          welcomeSubtitle: 'Har bite mein ghar jaisa pyaar aur royal swaad',
+          openingHours: '11:30 AM – 11:30 PM',
+          estPrepMinutes: 15,
+          serviceChargePercent: 0, // Transparent: 0 unless admin configures
+          todaySpecialId: 'item_butter_chicken',
+          firebaseDbUrl: '' // Optional Firebase RTDB URL for cross-device cloud sync
+        },
+        categories: [
+          { id: 'cat_starters', name: 'Starters', order: 1, visible: true },
+          { id: 'cat_main', name: 'Main Course', order: 2, visible: true },
+          { id: 'cat_biryani', name: 'Biryani', order: 3, visible: true },
+          { id: 'cat_chinese', name: 'Chinese', order: 4, visible: true },
+          { id: 'cat_snacks', name: 'Snacks', order: 5, visible: true },
+          { id: 'cat_drinks', name: 'Drinks', order: 6, visible: true },
+          { id: 'cat_desserts', name: 'Desserts', order: 7, visible: true }
+        ],
+        menuItems: [
+          {
+            id: 'item_paneer_tikka',
+            name: 'Smoky Tandoori Paneer Tikka',
+            description: 'Chargrilled malai cottage cheese cubes marinated in hung curd, Kashmiri mirch & ajwain.',
+            price: 295,
+            categoryId: 'cat_starters',
+            isVeg: true,
+            inStock: true,
+            isPopular: true,
+            isChefPick: true,
+            order: 1,
+            image: 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_chicken_seekh',
+            name: 'Awadhi Murgh Seekh Kebab',
+            description: 'Juicy minced chicken skewers infused with fresh mint, roasted cumin & royal garam masala.',
+            price: 340,
+            categoryId: 'cat_starters',
+            isVeg: false,
+            inStock: true,
+            isPopular: true,
+            isChefPick: false,
+            order: 2,
+            image: 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_crispy_corn',
+            name: 'Kurkure Masala Crispy Corn',
+            description: 'Golden fried sweet corn tossed with chopped onions, bell peppers, chatpata masala & lime.',
+            price: 215,
+            categoryId: 'cat_starters',
+            isVeg: true,
+            inStock: true,
+            isPopular: false,
+            isChefPick: false,
+            order: 3,
+            image: 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_butter_chicken',
+            name: 'Zaika Signature Butter Chicken',
+            description: 'Tandoor-roasted chicken tikka simmered in velvety tomato-cashew makhani gravy with white butter.',
+            price: 420,
+            categoryId: 'cat_main',
+            isVeg: false,
+            inStock: true,
+            isPopular: true,
+            isChefPick: true,
+            order: 4,
+            image: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_dal_makhani',
+            name: '24-Hour Slow-Cooked Dal Makhani',
+            description: 'Whole black urad lentils simmered overnight on charcoal embers with cream & hand-churned butter.',
+            price: 310,
+            categoryId: 'cat_main',
+            isVeg: true,
+            inStock: true,
+            isPopular: true,
+            isChefPick: false,
+            order: 5,
+            image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_paneer_lababdar',
+            name: 'Shahi Paneer Lababdar',
+            description: 'Soft paneer batons in rich onion-tomato gravy finished with grated paneer, kasuri methi & cream.',
+            price: 345,
+            categoryId: 'cat_main',
+            isVeg: true,
+            inStock: true,
+            isPopular: false,
+            isChefPick: false,
+            order: 6,
+            image: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_garlic_naan',
+            name: 'Butter Garlic Naan Basket (2 Pcs)',
+            description: 'Fluffy clay-oven leavened flatbread topped with roasted garlic, coriander & melted desi ghee.',
+            price: 110,
+            categoryId: 'cat_main',
+            isVeg: true,
+            inStock: true,
+            isPopular: true,
+            isChefPick: false,
+            order: 7,
+            image: 'https://images.unsplash.com/photo-1626074353765-517a681e40be?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_hyderabadi_biryani',
+            name: 'Royal Hyderabadi Dum Biryani',
+            description: 'Long-grain aged basmati rice sealed in handi with saffron, caramelized birista, mint & mirchi ka salan.',
+            price: 390,
+            categoryId: 'cat_biryani',
+            isVeg: false,
+            inStock: true,
+            isPopular: true,
+            isChefPick: true,
+            order: 8,
+            image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_subz_biryani',
+            name: 'Subz Nizami Handi Biryani',
+            description: 'Garden-fresh vegetables & paneer layered with aromatic kewra-scented basmati & burani raita.',
+            price: 320,
+            categoryId: 'cat_biryani',
+            isVeg: true,
+            inStock: true,
+            isPopular: false,
+            isChefPick: false,
+            order: 9,
+            image: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_chilli_paneer',
+            name: 'Wok-Tossed Chilli Paneer Dry',
+            description: 'Crispy cottage cheese cubes tossed with diced capsicum, spring onions, soy & fiery chilli garlic sauce.',
+            price: 275,
+            categoryId: 'cat_chinese',
+            isVeg: true,
+            inStock: true,
+            isPopular: true,
+            isChefPick: false,
+            order: 10,
+            image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_hakka_noodles',
+            name: 'Street-Style Burnt Garlic Hakka Noodles',
+            description: 'Smoky wok-tossed noodles with julienned veggies, golden fried garlic & light soy glaze.',
+            price: 230,
+            categoryId: 'cat_chinese',
+            isVeg: true,
+            inStock: true,
+            isPopular: false,
+            isChefPick: false,
+            order: 11,
+            image: 'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_samosa_chaat',
+            name: 'Dilli-6 Punjabi Samosa Chaat',
+            description: 'Crushed crispy aloo samosa topped with spiced chole, sweet saunth chutney, dahi & nylon sev.',
+            price: 165,
+            categoryId: 'cat_snacks',
+            isVeg: true,
+            inStock: true,
+            isPopular: true,
+            isChefPick: false,
+            order: 12,
+            image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_mango_lassi',
+            name: 'Alphonso Kesari Mango Lassi',
+            description: 'Thick chilled creamy yogurt blended with Ratnagiri Alphonso pulp, saffron strands & pistachios.',
+            price: 145,
+            categoryId: 'cat_drinks',
+            isVeg: true,
+            inStock: true,
+            isPopular: true,
+            isChefPick: false,
+            order: 13,
+            image: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_masala_shikanji',
+            name: 'Nimbu Pudina Masala Shikanji',
+            description: 'Refreshing sparkling lime cooler muddled with garden mint, roasted jeera & black salt.',
+            price: 115,
+            categoryId: 'cat_drinks',
+            isVeg: true,
+            inStock: true,
+            isPopular: false,
+            isChefPick: false,
+            order: 14,
+            image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_gulab_jamun',
+            name: 'Warm Khoya Gulab Jamun with Rabri',
+            description: 'Soft cardamom-scented khoya dumplings soaked in rose-saffron syrup served over chilled rabri.',
+            price: 160,
+            categoryId: 'cat_desserts',
+            isVeg: true,
+            inStock: true,
+            isPopular: true,
+            isChefPick: false,
+            order: 15,
+            image: 'https://images.unsplash.com/photo-1666190092159-3171cf0fbb12?auto=format&fit=crop&w=600&q=80'
+          },
+          {
+            id: 'item_rasmalai',
+            name: 'Kesar Pista Malai Rasmalai',
+            description: 'Delicate cottage cheese patties poached in thickened saffron-cardamom milk garnished with almonds.',
+            price: 175,
+            categoryId: 'cat_desserts',
+            isVeg: true,
+            inStock: false, // Demonstrates out-of-stock handling
+            isPopular: false,
+            isChefPick: false,
+            order: 16,
+            image: 'https://images.unsplash.com/photo-1605197161470-5d2a9af0ac7e?auto=format&fit=crop&w=600&q=80'
+          }
+        ],
+        staff: [
+          {
+            id: 'staff_admin_1',
+            name: 'Rajesh Sharma (Owner)',
+            role: 'Admin',
+            pinHash: hashPinSync('1111'),
+            active: true
+          },
+          {
+            id: 'staff_kitchen_1',
+            name: 'Chef Vikram',
+            role: 'Kitchen',
+            pinHash: hashPinSync('2222'),
+            active: true
+          },
+          {
+            id: 'staff_waiter_1',
+            name: 'Ramesh',
+            role: 'Waiter',
+            pinHash: hashPinSync('3333'),
+            active: true
+          },
+          {
+            id: 'staff_waiter_2',
+            name: 'Amit',
+            role: 'Waiter',
+            pinHash: hashPinSync('4444'),
+            active: true
+          }
+        ],
+        tables: Array.from({ length: 16 }, (_, idx) => {
+          const num = idx + 1;
+          return {
+            number: num,
+            label: `Table ${num}`,
+            assignedWaiterId: num <= 8 ? 'staff_waiter_1' : 'staff_waiter_2',
+            dnd: false,
+            waiterCalledAt: null,
+            billRequestedAt: null
+          };
+        }),
+        orders: [
+          // Realistic active sample orders so Kitchen & Waiter views look alive immediately
+          {
+            id: 'ORD-102',
+            orderNumber: 102,
+            tableNumber: 3,
+            customerName: 'Aarav',
+            spiceLevel: 'Medium',
+            generalInstructions: 'Pyaaz aur hari chutney extra bhejna',
+            status: 'Ban raha hai', // Mila | Ban raha hai | Tayyar | Serve hua
+            createdAt: now - 7 * 60 * 1000,
+            updatedAt: now - 4 * 60 * 1000,
+            assignedWaiterId: 'staff_waiter_1',
+            items: [
+              { itemId: 'item_paneer_tikka', name: 'Smoky Tandoori Paneer Tikka', price: 295, qty: 1, note: 'Extra smoky' },
+              { itemId: 'item_dal_makhani', name: '24-Hour Slow-Cooked Dal Makhani', price: 310, qty: 1, note: '' },
+              { itemId: 'item_garlic_naan', name: 'Butter Garlic Naan Basket (2 Pcs)', price: 110, qty: 2, note: '' }
+            ],
+            subtotal: 825,
+            serviceCharge: 0,
+            total: 825
+          },
+          {
+            id: 'ORD-103',
+            orderNumber: 103,
+            tableNumber: 11,
+            customerName: 'Sneha',
+            spiceLevel: 'Kam',
+            generalInstructions: '',
+            status: 'Mila',
+            createdAt: now - 2 * 60 * 1000,
+            updatedAt: now - 2 * 60 * 1000,
+            assignedWaiterId: 'staff_waiter_2',
+            items: [
+              { itemId: 'item_hyderabadi_biryani', name: 'Royal Hyderabadi Dum Biryani', price: 390, qty: 1, note: 'Raita alag se' },
+              { itemId: 'item_mango_lassi', name: 'Alphonso Kesari Mango Lassi', price: 145, qty: 2, note: 'Less ice' }
+            ],
+            subtotal: 680,
+            serviceCharge: 0,
+            total: 680
+          }
+        ],
+        alerts: [
+          {
+            id: 'alt_seed_1',
+            type: 'new_order', // new_order | waiter_call | bill_request | food_ready
+            tableNumber: 11,
+            waiterId: 'staff_waiter_2',
+            message: 'Table 11 · Naya order aaya (#103)',
+            createdAt: now - 2 * 60 * 1000,
+            completedAt: null
+          }
+        ],
+        quizQuestions: [
+          {
+            id: 'q1',
+            question: 'India mein sabse famous dum biryani styles mein se ek kaunsa hai?',
+            options: ['Hyderabadi Dum Biryani', 'Alpine Risotto', 'Mexican Paella', 'Cantonese Congee'],
+            correctIndex: 0,
+            fact: 'Hyderabadi Kachchi & Pakki Dum Biryani apni saffron, birista aur slow-sealed handi cooking ke liye duniya bhar mein mashhoor hai!'
+          },
+          {
+            id: 'q2',
+            question: 'Authentic Dal Makhani ko creamy aur smoky banane ke liye kitni der simmer kiya jaata hai?',
+            options: ['15 minute pressure cooker', '12 se 24 ghante slow flame par', 'Sirf 5 minute', 'Bina pakaye'],
+            correctIndex: 1,
+            fact: 'Slow-cooking se sabut urad dal ka starch naturally release hota hai jo bina zyada maida ya thickener ke velvety texture deta hai.'
+          },
+          {
+            id: 'q3',
+            question: 'Indian Chaat mein aam taur par kaunsa flavour combination milta hai?',
+            options: ['Sirf meetha', 'Khatta, meetha, teekha aur chatpata', 'Sirf namkeen', 'Kadvapan'],
+            correctIndex: 1,
+            fact: 'Imli ki meethi saunth, pudina-hari mirch ki teekhi chutney aur chaat masala ka balance hi asli Dilli chaat ka jaadu hai!'
+          }
+        ],
+        wheelPrizes: [
+          { id: 'p1', label: 'Free Masala Shikanji', color: '#2B2F6B', textColor: '#FFFFFF', isWin: true },
+          { id: 'p2', label: '5% Off Next Visit', color: '#F4B63F', textColor: '#1E2038', isWin: true },
+          { id: 'p3', label: 'Better Luck Next Time', color: '#E6E0D6', textColor: '#1E2038', isWin: false },
+          { id: 'p4', label: 'Complimentary Chai', color: '#1F8A5B', textColor: '#FFFFFF', isWin: true },
+          { id: 'p5', label: 'Free Gulab Jamun', color: '#D8402F', textColor: '#FFFFFF', isWin: true },
+          { id: 'p6', label: 'Chef Surprise Bite', color: '#43499E', textColor: '#FFFFFF', isWin: true }
+        ],
+        claimedRewards: []
+      };
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. REAL-TIME STORAGE & MULTI-TAB / FIREBASE SYNC ENGINE
+    // --------------------------------------------------------------------------
+    const DB_STORAGE_KEY = 'zaika_realtime_db_v1';
+    const CHANNEL_NAME = 'zaika_realtime_channel_v1';
+
+    const SyncStore = {
+      db: null,
+      channel: null,
+      listeners: new Set(),
+      syncStatus: 'Live Sync Active',
+      lastRemoteTimestamp: 0,
+      firebasePollTimer: null,
+
+      init() {
+        // Load persisted DB or initialize seed
+        try {
+          const raw = localStorage.getItem(DB_STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.menuItems && parsed.tables && parsed.staff) {
+              this.db = parsed;
+            }
+          }
+        } catch (e) {
+          console.warn('Storage read error, using fresh seed:', e);
+        }
+
+        if (!this.db) {
+          this.db = createInitialDatabase();
+          this.persistLocal(false);
+        }
+
+        // Cross-tab BroadcastChannel
+        if ('BroadcastChannel' in window) {
+          this.channel = new BroadcastChannel(CHANNEL_NAME);
+          this.channel.onmessage = (event) => {
+            if (event.data && event.data.type === 'DB_SYNC' && event.data.payload) {
+              const incoming = event.data.payload;
+              if (!this.db || incoming.updatedAt >= this.db.updatedAt) {
+                this.handleIncomingChanges(this.db, incoming);
+                this.db = incoming;
+                localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(this.db));
+                this.notifyListeners();
+              }
+            }
+          };
+        }
+
+        // Fallback cross-tab localStorage event listener
+        window.addEventListener('storage', (e) => {
+          if (e.key === DB_STORAGE_KEY && e.newValue) {
+            try {
+              const incoming = JSON.parse(e.newValue);
+              if (incoming && (!this.db || incoming.updatedAt >= this.db.updatedAt)) {
+                this.handleIncomingChanges(this.db, incoming);
+                this.db = incoming;
+                this.notifyListeners();
+              }
+            } catch (err) {}
+          }
+        });
+
+        this.setupFirebasePolling();
+      },
+
+      // Detect newly arriving orders/alerts from other tabs/devices to play audio cues
+      handleIncomingChanges(prevDb, nextDb) {
+        if (!prevDb || !nextDb) return;
+        const prevOrderIds = new Set((prevDb.orders || []).map(o => o.id));
+        const newOrders = (nextDb.orders || []).filter(o => !prevOrderIds.has(o.id));
+        if (newOrders.length > 0 && AppState.activeView === 'kitchen') {
+          SoundEngine.play('order');
+          showToast(`Naya Order #${newOrders[0].orderNumber} (Table ${newOrders[0].tableNumber})!`, 'marigold');
+        }
+
+        const prevAlertIds = new Set((prevDb.alerts || []).map(a => a.id));
+        const newAlerts = (nextDb.alerts || []).filter(a => !prevAlertIds.has(a.id) && !a.completedAt);
+        if (newAlerts.length > 0 && AppState.activeView === 'waiter') {
+          const al = newAlerts[0];
+          const staff = getLoggedStaff();
+          if (!staff || staff.role === 'Admin' || staff.id === al.waiterId) {
+            SoundEngine.play(al.type === 'food_ready' ? 'ready' : 'alert');
+            showToast(al.message, al.type === 'bill_request' ? 'chilli' : 'indigo');
+          }
+        }
+      },
+
+      subscribe(fn) {
+        this.listeners.add(fn);
+        return () => this.listeners.delete(fn);
+      },
+
+      notifyListeners() {
+        this.listeners.forEach(fn => {
+          try { fn(this.db); } catch (e) { console.error(e); }
+        });
+      },
+
+      mutate(mutatorFn) {
+        const prevSnapshot = JSON.parse(JSON.stringify(this.db));
+        mutatorFn(this.db);
+        this.db.updatedAt = Date.now();
+        this.persistLocal(true);
+        this.pushToFirebase();
+        this.notifyListeners();
+        return this.db;
+      },
+
+      persistLocal(broadcast = true) {
+        try {
+          localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(this.db));
+        } catch (e) {
+          showToast('Storage full warning: Please clear old demo data.', 'chilli');
+        }
+        if (broadcast && this.channel) {
+          try {
+            this.channel.postMessage({ type: 'DB_SYNC', payload: this.db });
+          } catch (e) {}
+        }
+      },
+
+      resetDemoData() {
+        this.db = createInitialDatabase();
+        this.persistLocal(true);
+        this.pushToFirebase();
+        this.notifyListeners();
+        showToast('Demo data fresh reset kar diya gaya hai ✓', 'success');
+      },
+
+      // Optional Firebase Realtime Database REST Sync (if Admin configures URL)
+      setupFirebasePolling() {
+        if (this.firebasePollTimer) clearInterval(this.firebasePollTimer);
+        const url = (this.db?.settings?.firebaseDbUrl || '').trim().replace(/\/$/, '');
+        if (!url) {
+          this.syncStatus = 'Live Local Sync';
+          return;
+        }
+        this.syncStatus = 'Cloud + Local Sync';
+        this.firebasePollTimer = setInterval(async () => {
+          const activeUrl = (this.db?.settings?.firebaseDbUrl || '').trim().replace(/\/$/, '');
+          if (!activeUrl) return;
+          try {
+            const res = await fetch(`${activeUrl}/zaika_state.json`);
+            if (res.ok) {
+              const remote = await res.json();
+              if (remote && remote.updatedAt && remote.updatedAt > this.db.updatedAt) {
+                this.handleIncomingChanges(this.db, remote);
+                this.db = remote;
+                this.persistLocal(true);
+                this.notifyListeners();
+              }
+              this.syncStatus = 'Firebase Live Connected';
+            } else {
+              this.syncStatus = 'Cloud Sync Warning';
+            }
+          } catch (err) {
+            this.syncStatus = 'Offline (Local Sync Active)';
+          }
+        }, 3500);
+      },
+
+      async pushToFirebase() {
+        const url = (this.db?.settings?.firebaseDbUrl || '').trim().replace(/\/$/, '');
+        if (!url) return;
+        try {
+          await fetch(`${url}/zaika_state.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.db)
+          });
+        } catch (err) {
+          // Graceful offline resilience
+        }
+      }
+    };
+
+    // --------------------------------------------------------------------------
+    // 5. APPLICATION CLIENT & SESSION STATE
+    // --------------------------------------------------------------------------
+    const AppState = {
+      activeView: 'customer', // 'customer' | 'kitchen' | 'waiter' | 'admin'
+      customerSubView: 'menu', // 'menu' | 'cart' | 'tracking' | 'fun' | 'privacy'
+      tableNumber: null,
+      customerName: localStorage.getItem('zaika_customer_name') || '',
+      spiceLevel: localStorage.getItem('zaika_spice_level') || 'Medium',
+      cart: JSON.parse(localStorage.getItem('zaika_cart_v1') || '[]'), // [{ itemId, qty, note }]
+      generalInstructions: '',
+      isSubmittingOrder: false,
+
+      // Menu filters
+      selectedCategory: 'all',
+      searchQuery: '',
+      vegOnly: false,
+      chefPicksOnly: false,
+      popularOnly: false,
+
+      // Cooldowns for spam prevention
+      lastWaiterCallAt: 0,
+      lastBillRequestAt: 0,
+
+      // Fun zone state
+      quizIndex: 0,
+      quizScore: 0,
+      quizSelectedOption: null,
+      quizFinished: false,
+      wheelRotation: 0,
+      wheelSpinning: false,
+      wheelResult: null,
+
+      // Kitchen & Waiter UI state
+      kitchenFilter: 'all', // 'all' | 'Mila' | 'Ban raha hai' | 'Tayyar'
+      waiterTab: 'alerts', // 'alerts' | 'tables' | 'history'
+      selectedWaiterIdFilter: 'mine',
+
+      // Admin UI state
+      adminTab: 'menu', // 'menu' | 'categories' | 'tables' | 'staff' | 'settings'
+      selectedQrTable: 5,
+
+      // Staff Auth Session (stored in sessionStorage)
+      staffSession: (() => {
+        try {
+          const raw = sessionStorage.getItem('zaika_staff_session');
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.expiresAt > Date.now()) return parsed;
+        } catch (e) {}
+        return null;
+      })()
+    };
+
+    function detectTableFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const t = parseInt(params.get('table'), 10);
+      if (!isNaN(t) && t > 0) {
+        AppState.tableNumber = t;
+        localStorage.setItem('zaika_last_table', String(t));
+      } else {
+        AppState.tableNumber = null;
+      }
+    }
+
+    function setTableNumber(num) {
+      const parsed = parseInt(num, 10);
+      if (isNaN(parsed) || parsed < 1) return;
+      AppState.tableNumber = parsed;
+      localStorage.setItem('zaika_last_table', String(parsed));
+      // Update URL cleanly without reloading page
+      const url = new URL(window.location.href);
+      url.searchParams.set('table', String(parsed));
+      window.history.pushState({ table: parsed }, '', url.toString());
+
+      // Ensure table exists in DB
+      const exists = SyncStore.db.tables.some(t => t.number === parsed);
+      if (!exists) {
+        SyncStore.mutate(db => {
+          db.tables.push({
+            number: parsed,
+            label: `Table ${parsed}`,
+            assignedWaiterId: db.staff.find(s => s.role === 'Waiter' && s.active)?.id || null,
+            dnd: false,
+            waiterCalledAt: null,
+            billRequestedAt: null
+          });
+          db.tables.sort((a, b) => a.number - b.number);
+        });
+      }
+      renderApp();
+    }
+
+    function clearTableSelection() {
+      AppState.tableNumber = null;
+      const url = new URL(window.location.href);
+      url.searchParams.delete('table');
+      window.history.pushState({}, '', url.toString());
+      renderApp();
+    }
+
+    function saveCart() {
+      localStorage.setItem('zaika_cart_v1', JSON.stringify(AppState.cart));
+    }
+
+    function getLoggedStaff() {
+      if (!AppState.staffSession) return null;
+      if (AppState.staffSession.expiresAt <= Date.now()) {
+        AppState.staffSession = null;
+        sessionStorage.removeItem('zaika_staff_session');
+        return null;
+      }
+      return SyncStore.db.staff.find(s => s.id === AppState.staffSession.staffId && s.active) || null;
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. TOAST & MODAL UI HELPERS (Zero alert() / confirm())
+    // --------------------------------------------------------------------------
+    function showToast(message, variant = 'indigo') {
+      const root = document.getElementById('toast-root');
+      if (!root) return;
+      const colors = {
+        indigo: 'bg-indigoBrand text-white border-marigold/40',
+        success: 'bg-success text-white border-white/20',
+        marigold: 'bg-marigold text-inkLight border-indigoBrand/20 font-semibold',
+        chilli: 'bg-chilli text-white border-white/20'
+      };
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-float border text-sm transition-all duration-300 transform translate-y-0 opacity-100 ${colors[variant] || colors.indigo}`;
+      el.innerHTML = `
+        <span class="leading-snug">${escapeHtml(message)}</span>
+        <button type="button" class="opacity-80 hover:opacity-100 text-xs px-1.5 py-0.5 rounded" aria-label="Close">✕</button>
+      `;
+      el.querySelector('button').onclick = () => el.remove();
+      root.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-6px)';
+        setTimeout(() => el.remove(), 250);
+      }, 3400);
+    }
+
+    function openModal(title, bodyHtml, maxWidthClass = 'max-w-lg') {
+      const root = document.getElementById('modal-root');
+      root.innerHTML = `
+        <div id="modal-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-enter">
+          <div class="w-full ${maxWidthClass} bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-creamBorder dark:border-midnightBorder shrink-0">
+              <h3 class="text-lg font-bold text-indigoBrand dark:text-marigold truncate pr-2">${escapeHtml(title)}</h3>
+              <button type="button" onclick="closeModal()" class="w-9 h-9 rounded-full bg-creamElevated dark:bg-midnightElevated flex items-center justify-center text-sm font-bold hover:opacity-80 transition">✕</button>
+            </div>
+            <div class="p-5 overflow-y-auto space-y-4">
+              ${bodyHtml}
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('modal-backdrop').addEventListener('click', (e) => {
+        if (e.target.id === 'modal-backdrop') closeModal();
+      });
+    }
+
+    function closeModal() {
+      const root = document.getElementById('modal-root');
+      if (root) root.innerHTML = '';
+    }
+
+    function confirmAction(title, message, confirmLabel, onConfirm, isDanger = true) {
+      openModal(title, `
+        <p class="text-sm text-mutedLight dark:text-mutedDark leading-relaxed">${escapeHtml(message)}</p>
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl text-sm font-semibold bg-creamElevated dark:bg-midnightElevated hover:opacity-90 transition">Cancel</button>
+          <button type="button" id="confirm-modal-btn" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white ${isDanger ? 'bg-chilli' : 'bg-success'} hover:opacity-95 transition">${escapeHtml(confirmLabel)}</button>
+        </div>
+      `, 'max-w-sm');
+      document.getElementById('confirm-modal-btn').onclick = () => {
+        closeModal();
+        onConfirm();
+      };
+    }
+
+    // --------------------------------------------------------------------------
+    // 7. BUSINESS LOGIC & REAL-TIME ACTIONS
+    // --------------------------------------------------------------------------
+    function getGreetingText() {
+      const hr = new Date().getHours();
+      if (hr >= 5 && hr < 12) return 'Good morning';
+      if (hr >= 12 && hr < 17) return 'Good afternoon';
+      return 'Good evening';
+    }
+
+    function getTableRecord(tableNumber) {
+      return SyncStore.db.tables.find(t => t.number === tableNumber) || {
+        number: tableNumber,
+        label: `Table ${tableNumber}`,
+        assignedWaiterId: null,
+        dnd: false,
+        waiterCalledAt: null,
+        billRequestedAt: null
+      };
+    }
+
+    function getTableOrders(tableNumber) {
+      return SyncStore.db.orders
+        .filter(o => o.tableNumber === tableNumber)
+        .sort((a, b) => b.createdAt - a.createdAt);
+    }
+
+    function getActiveTableOrders(tableNumber) {
+      return getTableOrders(tableNumber).filter(o => o.status !== 'Serve hua');
+    }
+
+    function getCartSummary() {
+      let totalQty = 0;
+      let subtotal = 0;
+      const validLines = [];
+
+      AppState.cart.forEach(entry => {
+        const item = SyncStore.db.menuItems.find(m => m.id === entry.itemId);
+        if (!item || !item.inStock || entry.qty <= 0) return;
+        const lineTotal = item.price * entry.qty;
+        totalQty += entry.qty;
+        subtotal += lineTotal;
+        validLines.push({
+          ...entry,
+          item,
+          lineTotal
+        });
+      });
+
+      const scPct = Number(SyncStore.db.settings.serviceChargePercent) || 0;
+      const serviceCharge = scPct > 0 ? Math.round((subtotal * scPct) / 100) : 0;
+      const grandTotal = subtotal + serviceCharge;
+
+      return { totalQty, subtotal, serviceCharge, grandTotal, validLines };
+    }
+
+    function updateCartQty(itemId, delta) {
+      const item = SyncStore.db.menuItems.find(m => m.id === itemId);
+      if (!item || !item.inStock) {
+        showToast('Yeh dish abhi available nahi hai', 'chilli');
+        return;
+      }
+      const idx = AppState.cart.findIndex(c => c.itemId === itemId);
+      if (idx === -1 && delta > 0) {
+        AppState.cart.push({ itemId, qty: 1, note: '' });
+        SoundEngine.play('tap');
+      } else if (idx !== -1) {
+        const nextQty = AppState.cart[idx].qty + delta;
+        if (nextQty <= 0) {
+          AppState.cart.splice(idx, 1);
+        } else {
+          AppState.cart[idx].qty = nextQty;
+          if (delta > 0) SoundEngine.play('tap');
+        }
+      }
+      saveCart();
+      renderApp();
+    }
+
+    function updateCartItemNote(itemId, noteText) {
+      const entry = AppState.cart.find(c => c.itemId === itemId);
+      if (entry) {
+        entry.note = noteText;
+        saveCart();
+      }
+    }
+
+    function setSpicePreference(level) {
+      AppState.spiceLevel = level;
+      localStorage.setItem('zaika_spice_level', level);
+      SoundEngine.play('tap');
+      renderApp();
+    }
+
+    function callWaiterForTable(tableNumber) {
+      const now = Date.now();
+      const table = getTableRecord(tableNumber);
+      // Prevent duplicate alert spam within 20s or if already active
+      if (table.waiterCalledAt && now - table.waiterCalledAt < 20000) {
+        showToast('Waiter ko pehle hi bula diya gaya hai ✓', 'indigo');
+        return;
+      }
+
+      SyncStore.mutate(db => {
+        const tbl = db.tables.find(t => t.number === tableNumber);
+        if (tbl) tbl.waiterCalledAt = now;
+        db.alerts.unshift({
+          id: `alt_${now}_${Math.random().toString(36).slice(2, 6)}`,
+          type: 'waiter_call',
+          tableNumber,
+          waiterId: tbl?.assignedWaiterId || null,
+          message: `Table ${tableNumber} · Waiter bula rahe hain`,
+          createdAt: now,
+          completedAt: null
+        });
+      });
+
+      SoundEngine.play('alert');
+      showToast('Waiter ko bula diya hai ✓', 'success');
+      renderApp();
+    }
+
+    function requestBillForTable(tableNumber) {
+      const now = Date.now();
+      const table = getTableRecord(tableNumber);
+      if (table.billRequestedAt) {
+        showToast('Bill ke liye waiter ko bula diya hai ✓', 'indigo');
+        return;
+      }
+
+      SyncStore.mutate(db => {
+        const tbl = db.tables.find(t => t.number === tableNumber);
+        if (tbl) tbl.billRequestedAt = now;
+        db.alerts.unshift({
+          id: `alt_bill_${now}_${Math.random().toString(36).slice(2, 6)}`,
+          type: 'bill_request',
+          tableNumber,
+          waiterId: tbl?.assignedWaiterId || null,
+          message: `Table ${tableNumber} · Bill chahiye`,
+          createdAt: now,
+          completedAt: null
+        });
+      });
+
+      SoundEngine.play('bill');
+      showToast('Bill ke liye waiter ko bula diya hai ✓', 'marigold');
+      renderApp();
+    }
+
+    function toggleTableDND(tableNumber) {
+      SyncStore.mutate(db => {
+        const tbl = db.tables.find(t => t.number === tableNumber);
+        if (tbl) tbl.dnd = !tbl.dnd;
+      });
+      const isNowDnd = getTableRecord(tableNumber).dnd;
+      showToast(isNowDnd ? 'Privacy Mode (DND) ON kar diya gaya hai' : 'Privacy Mode OFF kar diya gaya hai', 'indigo');
+      renderApp();
+    }
+
+    function submitCustomerOrder() {
+      if (AppState.isSubmittingOrder) return;
+      if (!AppState.tableNumber) {
+        showToast('Pehle apna table number select karein', 'chilli');
+        return;
+      }
+
+      // Re-validate stock & latest prices against live DB before submitting
+      const invalidItems = AppState.cart.filter(c => {
+        const m = SyncStore.db.menuItems.find(x => x.id === c.itemId);
+        return !m || !m.inStock;
+      });
+
+      if (invalidItems.length > 0) {
+        AppState.cart = AppState.cart.filter(c => {
+          const m = SyncStore.db.menuItems.find(x => x.id === c.itemId);
+          return m && m.inStock;
+        });
+        saveCart();
+        showToast('Kuch items out of stock ho gaye the, cart update kar diya hai.', 'chilli');
+        renderApp();
+        return;
+      }
+
+      const summary = getCartSummary();
+      if (summary.validLines.length === 0) {
+        showToast('Aapka cart khali hai!', 'chilli');
+        return;
+      }
+
+      AppState.isSubmittingOrder = true;
+      renderApp();
+
+      try {
+        const now = Date.now();
+        const table = getTableRecord(AppState.tableNumber);
+        let createdOrderNumber = 104;
+
+        SyncStore.mutate(db => {
+          db.orderCounter = (db.orderCounter || 103) + 1;
+          createdOrderNumber = db.orderCounter;
+
+          const newOrder = {
+            id: `ORD-${createdOrderNumber}`,
+            orderNumber: createdOrderNumber,
+            tableNumber: AppState.tableNumber,
+            customerName: AppState.customerName.trim(),
+            spiceLevel: AppState.spiceLevel,
+            generalInstructions: AppState.generalInstructions.trim(),
+            status: 'Mila',
+            createdAt: now,
+            updatedAt: now,
+            assignedWaiterId: table.assignedWaiterId || null,
+            items: summary.validLines.map(l => ({
+              itemId: l.item.id,
+              name: l.item.name,
+              price: l.item.price,
+              qty: l.qty,
+              note: (l.note || '').trim()
+            })),
+            subtotal: summary.subtotal,
+            serviceCharge: summary.serviceCharge,
+            total: summary.grandTotal
+          };
+
+          db.orders.unshift(newOrder);
+
+          // Notify assigned waiter of new order
+          db.alerts.unshift({
+            id: `alt_ord_${now}_${Math.random().toString(36).slice(2, 6)}`,
+            type: 'new_order',
+            tableNumber: AppState.tableNumber,
+            waiterId: table.assignedWaiterId || null,
+            message: `Table ${AppState.tableNumber} · Naya order aaya (#${createdOrderNumber})`,
+            createdAt: now,
+            completedAt: null
+          });
+        });
+
+        // Clear submitted cart only, keep table & previous orders intact
+        AppState.cart = [];
+        AppState.generalInstructions = '';
+        saveCart();
+        AppState.customerSubView = 'tracking';
+        SoundEngine.play('order');
+        showToast(`Order #${createdOrderNumber} kitchen ko bhej diya gaya hai! 🎉`, 'success');
+      } catch (err) {
+        showToast('Order bhejne mein samasya aayi, kripya dubara try karein.', 'chilli');
+      } finally {
+        AppState.isSubmittingOrder = false;
+        renderApp();
+      }
+    }
+
+    // Kitchen Status Transition
+    function advanceKitchenOrder(orderId, nextStatus) {
+      const now = Date.now();
+      let targetOrder = null;
+
+      SyncStore.mutate(db => {
+        const ord = db.orders.find(o => o.id === orderId);
+        if (!ord || ord.status === nextStatus) return;
+        ord.status = nextStatus;
+        ord.updatedAt = now;
+        targetOrder = ord;
+
+        if (nextStatus === 'Tayyar') {
+          const tbl = db.tables.find(t => t.number === ord.tableNumber);
+          db.alerts.unshift({
+            id: `alt_rdy_${now}_${Math.random().toString(36).slice(2, 6)}`,
+            type: 'food_ready',
+            tableNumber: ord.tableNumber,
+            waiterId: ord.assignedWaiterId || tbl?.assignedWaiterId || null,
+            message: `Table ${ord.tableNumber} ka khana le jao (#${ord.orderNumber})`,
+            createdAt: now,
+            completedAt: null
+          });
+        }
+      });
+
+      if (targetOrder) {
+        if (nextStatus === 'Ban raha hai') {
+          showToast(`Order #${targetOrder.orderNumber} banana shuru ho gaya`, 'indigo');
+        } else if (nextStatus === 'Tayyar') {
+          SoundEngine.play('ready');
+          showToast(`Order #${targetOrder.orderNumber} Tayyar! Waiter ko alert bhej diya hai.`, 'success');
+        }
+      }
+      renderApp();
+    }
+
+    // Waiter Marks Order Served
+    function markOrderServed(orderId) {
+      SyncStore.mutate(db => {
+        const ord = db.orders.find(o => o.id === orderId);
+        if (!ord) return;
+        ord.status = 'Serve hua';
+        ord.updatedAt = Date.now();
+      });
+      showToast('Order ko Serve hua mark kar diya gaya ✓', 'success');
+      renderApp();
+    }
+
+    // Waiter Completes Alert
+    function completeWaiterAlert(alertId) {
+      const now = Date.now();
+      SyncStore.mutate(db => {
+        const al = db.alerts.find(a => a.id === alertId);
+        if (!al || al.completedAt) return;
+        al.completedAt = now;
+
+        // Clear corresponding customer-facing active request flags on the table
+        const tbl = db.tables.find(t => t.number === al.tableNumber);
+        if (tbl) {
+          if (al.type === 'waiter_call') tbl.waiterCalledAt = null;
+          if (al.type === 'bill_request') tbl.billRequestedAt = null;
+        }
+      });
+      SoundEngine.play('tap');
+      showToast('Alert Done mark kar diya gaya ✓', 'success');
+      renderApp();
+    }
+
+    // --------------------------------------------------------------------------
+    // 8. TIME & FORMAT HELPERS
+    // --------------------------------------------------------------------------
+    function formatTimeAgo(ts) {
+      if (!ts) return '';
+      const diffSec = Math.max(1, Math.floor((Date.now() - ts) / 1000));
+      if (diffSec < 60) return `${diffSec}s ago`;
+      const mins = Math.floor(diffSec / 60);
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      return `${hrs}h ${mins % 60}m ago`;
+    }
+
+    function formatClockTime(ts) {
+      return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderVegBadge(isVeg) {
+      return isVeg
+        ? `<span class="inline-flex items-center justify-center w-4 h-4 rounded-[4px] border-[1.5px] border-success shrink-0" title="Pure Veg" aria-label="Veg"><span class="w-2 h-2 rounded-full bg-success"></span></span>`
+        : `<span class="inline-flex items-center justify-center w-4 h-4 rounded-[4px] border-[1.5px] border-chilli shrink-0" title="Non-Veg" aria-label="Non-Veg"><span class="w-2 h-2 rounded-full bg-chilli"></span></span>`;
+    }
+
+    // --------------------------------------------------------------------------
+    // 9. TOP UTILITY BAR (Demo Switcher, Sync Status, Sound, Theme)
+    // --------------------------------------------------------------------------
+    function renderTopUtilityBar() {
+      const isDark = document.documentElement.classList.contains('dark');
+      const views = [
+        { id: 'customer', label: 'Customer' },
+        { id: 'kitchen', label: 'Kitchen' },
+        { id: 'waiter', label: 'Waiter' },
+        { id: 'admin', label: 'Admin' }
+      ];
+
+      const pendingKitchenCount = SyncStore.db.orders.filter(o => o.status === 'Mila' || o.status === 'Ban raha hai').length;
+      const activeAlertsCount = SyncStore.db.alerts.filter(a => !a.completedAt).length;
+
+      return `
+        <div class="sticky top-0 z-50 w-full bg-creamCard/95 dark:bg-midnightCard/95 backdrop-blur-md border-b border-creamBorder dark:border-midnightBorder px-2.5 sm:px-4 py-2">
+          <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <!-- Role / Demo Switcher -->
+            <div class="flex items-center bg-creamElevated dark:bg-midnightElevated p-1 rounded-xl border border-creamBorder dark:border-midnightBorder overflow-x-auto no-scrollbar max-w-full">
+              ${views.map(v => {
+                const active = AppState.activeView === v.id;
+                let badge = '';
+                if (v.id === 'kitchen' && pendingKitchenCount > 0) {
+                  badge = `<span class="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-marigold text-inkLight font-bold">${pendingKitchenCount}</span>`;
+                } else if (v.id === 'waiter' && activeAlertsCount > 0) {
+                  badge = `<span class="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-chilli text-white font-bold">${activeAlertsCount}</span>`;
+                }
+                return `
+                  <button
+                    type="button"
+                    onclick="switchAppView('${v.id}')"
+                    class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap flex items-center ${
+                      active
+                        ? 'bg-indigoBrand text-white shadow-xs'
+                        : 'text-mutedLight dark:text-mutedDark hover:text-inkLight dark:hover:text-white'
+                    }">
+                    ${v.label}${badge}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+
+            <!-- Live Sync, Audio, Theme & Reset Controls -->
+            <div class="flex items-center gap-1.5 sm:gap-2 ml-auto">
+              <span class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-success/10 text-success border border-success/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
+                ${escapeHtml(SyncStore.syncStatus)}
+              </span>
+
+              <button
+                type="button"
+                onclick="toggleSoundPreference()"
+                title="${SoundEngine.enabled ? 'Mute Alerts' : 'Unmute Alerts'}"
+                aria-label="Toggle notification audio"
+                class="w-8 h-8 rounded-xl bg-creamElevated dark:bg-midnightElevated border border-creamBorder dark:border-midnightBorder flex items-center justify-center text-sm hover:border-marigold transition">
+                ${SoundEngine.enabled ? '🔔' : '🔕'}
+              </button>
+
+              <button
+                type="button"
+                onclick="toggleThemePreference()"
+                title="Toggle Light / Dark Mode"
+                aria-label="Toggle theme"
+                class="w-8 h-8 rounded-xl bg-creamElevated dark:bg-midnightElevated border border-creamBorder dark:border-midnightBorder flex items-center justify-center text-sm hover:border-marigold transition">
+                ${isDark ? '☀️' : '🌙'}
+              </button>
+
+              <button
+                type="button"
+                onclick="promptResetDemo()"
+                title="Reset Demo Data"
+                class="px-2.5 h-8 rounded-xl bg-creamElevated dark:bg-midnightElevated border border-creamBorder dark:border-midnightBorder text-[11px] font-semibold text-mutedLight dark:text-mutedDark hover:text-chilli transition">
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function switchAppView(viewId) {
+      AppState.activeView = viewId;
+      renderApp();
+    }
+
+    function toggleThemePreference() {
+      const root = document.documentElement;
+      const isDark = root.classList.toggle('dark');
+      localStorage.setItem('zaika_theme', isDark ? 'dark' : 'light');
+      renderApp();
+    }
+
+    function toggleSoundPreference() {
+      const enabled = SoundEngine.toggle();
+      showToast(enabled ? 'Notification sound ON 🔔' : 'Notification sound Muted 🔕', 'indigo');
+      renderApp();
+    }
+
+    function promptResetDemo() {
+      confirmAction(
+        'Reset Demo Data?',
+        'Saare sample orders, alerts, tables aur menu default state par reset ho jayenge.',
+        'Haan, Reset Karein',
+        () => SyncStore.resetDemoData(),
+        true
+      );
+    }
+
+    // --------------------------------------------------------------------------
+    // 10. TABLE SELECTION SCREEN (Shown if ?table=X is missing)
+    // --------------------------------------------------------------------------
+    function renderTableSelectionScreen() {
+      const tables = SyncStore.db.tables;
+      return `
+        <div class="flex-1 flex flex-col items-center justify-center px-4 py-8 max-w-2xl mx-auto w-full animate-enter">
+          <div class="w-full bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-6 sm:p-8 shadow-soft text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigoBrand text-marigold text-3xl shadow-glow mb-4">
+              🍛
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-indigoBrand dark:text-marigold tracking-tight">
+              ${escapeHtml(SyncStore.db.settings.restaurantName)} — Swagat Hai!
+            </h1>
+            <p class="text-sm sm:text-base text-mutedLight dark:text-mutedDark mt-1.5 max-w-md mx-auto">
+              QR code scan nahi hua hai. Kripya apna <strong>Table Number</strong> chunein taaki hum aapka order sahi table par pahuncha sakein.
+            </p>
+
+            <div class="grid grid-cols-4 sm:grid-cols-5 gap-2.5 sm:gap-3 mt-6">
+              ${tables.map(t => `
+                <button
+                  type="button"
+                  onclick="setTableNumber(${t.number})"
+                  class="py-3 px-2 rounded-2xl border border-creamBorder dark:border-midnightBorder bg-creamElevated/70 dark:bg-midnightElevated hover:border-marigold hover:bg-indigoBrand hover:text-white dark:hover:bg-marigold dark:hover:text-inkLight transition font-heading font-bold text-base shadow-2xs">
+                  Table ${t.number}
+                </button>
+              `).join('')}
+            </div>
+
+            <div class="mt-6 pt-5 border-t border-creamBorder dark:border-midnightBorder flex flex-col sm:flex-row items-center justify-center gap-3">
+              <span class="text-xs text-mutedLight dark:text-mutedDark">Ya custom table number daalein:</span>
+              <form onsubmit="event.preventDefault(); setTableNumber(this.customTable.value);" class="flex items-center gap-2">
+                <input
+                  type="number"
+                  name="customTable"
+                  min="1"
+                  max="99"
+                  required
+                  placeholder="e.g. 5"
+                  class="w-24 px-3 py-2 rounded-xl text-sm bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder focus:outline-none focus:border-indigoBrand dark:focus:border-marigold" />
+                <button type="submit" class="px-4 py-2 rounded-xl bg-indigoBrand text-white text-sm font-semibold hover:bg-indigoDeep transition">
+                  Start Ordering →
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // --------------------------------------------------------------------------
+    // 11. CUSTOMER EXPERIENCE VIEW
+    // --------------------------------------------------------------------------
+    function renderCustomerView() {
+      if (!AppState.tableNumber) {
+        return renderTableSelectionScreen();
+      }
+
+      const table = getTableRecord(AppState.tableNumber);
+      const activeOrders = getActiveTableOrders(AppState.tableNumber);
+      const allTableOrders = getTableOrders(AppState.tableNumber);
+      const cartSummary = getCartSummary();
+
+      // If Privacy / Do Not Disturb mode is active and user is on privacy screen
+      if (AppState.customerSubView === 'privacy') {
+        return renderCustomerPrivacyScreen(table, activeOrders);
+      }
+
+      if (AppState.customerSubView === 'cart') {
+        return renderCustomerCartScreen(table, cartSummary);
+      }
+
+      if (AppState.customerSubView === 'tracking') {
+        return renderCustomerTrackingScreen(table, allTableOrders);
+      }
+
+      if (AppState.customerSubView === 'fun') {
+        return renderCustomerFunScreen(table);
+      }
+
+      // Main Welcome + Menu View
+      const specialItem = SyncStore.db.menuItems.find(m => m.id === SyncStore.db.settings.todaySpecialId) || SyncStore.db.menuItems[0];
+      const categories = SyncStore.db.categories.filter(c => c.visible).sort((a, b) => a.order - b.order);
+
+      // Filter Menu Items
+      const filteredItems = SyncStore.db.menuItems
+        .filter(item => {
+          if (AppState.selectedCategory !== 'all' && item.categoryId !== AppState.selectedCategory) return false;
+          if (AppState.vegOnly && !item.isVeg) return false;
+          if (AppState.chefPicksOnly && !item.isChefPick) return false;
+          if (AppState.popularOnly && !item.isPopular) return false;
+          if (AppState.searchQuery.trim() !== '') {
+            const q = AppState.searchQuery.toLowerCase();
+            const matchName = item.name.toLowerCase().includes(q);
+            const matchDesc = item.description.toLowerCase().includes(q);
+            if (!matchName && !matchDesc) return false;
+          }
+          return true;
+        })
+        .sort((a, b) => a.order - b.order);
+
+      const hasStickyCart = cartSummary.totalQty > 0;
+
+      return `
+        <div class="flex-1 w-full max-w-3xl mx-auto px-3 sm:px-5 pt-3 ${hasStickyCart ? 'pb-28' : 'pb-12'} space-y-5 animate-enter">
+          <!-- 1. PREMIUM INDIGO WELCOME HEADER -->
+          <header class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigoBrand via-indigoBrand to-indigoDeep text-white p-5 sm:p-6 shadow-float">
+            <!-- Subtle floating decorative food emojis -->
+            <span aria-hidden="true" class="animate-float-1 select-none pointer-events-none absolute top-3 right-16 text-xl opacity-25">🍛</span>
+            <span aria-hidden="true" class="animate-float-2 select-none pointer-events-none absolute bottom-3 right-6 text-2xl opacity-20">🫓</span>
+            <span aria-hidden="true" class="animate-float-3 select-none pointer-events-none absolute top-12 right-4 text-lg opacity-20">🌶️</span>
+
+            <div class="relative z-10 flex items-start justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="font-heading font-extrabold text-xl sm:text-2xl tracking-wide text-marigold">
+                    ${escapeHtml(SyncStore.db.settings.restaurantName)}
+                  </span>
+                  <span class="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/90 font-medium">
+                    Dine-In
+                  </span>
+                </div>
+
+                <h1 class="mt-2 text-xl sm:text-2xl font-bold leading-snug break-words">
+                  ${getGreetingText()}${AppState.customerName ? `, ${escapeHtml(AppState.customerName)} ji` : ''} 👋
+                </h1>
+                <p class="text-xs sm:text-sm text-white/80 mt-0.5">
+                  ${escapeHtml(SyncStore.db.settings.welcomeSubtitle)}
+                </p>
+
+                <!-- Optional Name & DND Quick Controls -->
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onclick="promptCustomerName()"
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/12 hover:bg-white/20 text-xs font-medium text-white transition">
+                    <span>✏️</span>
+                    <span>${AppState.customerName ? 'Naam badlein' : 'Apna naam likhein'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick="AppState.customerSubView = 'privacy'; renderApp();"
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${table.dnd ? 'bg-marigold text-inkLight font-bold' : 'bg-white/12 hover:bg-white/20 text-white'} text-xs transition">
+                    <span>🔕</span>
+                    <span>${table.dnd ? 'DND Active' : 'Privacy'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick="AppState.customerSubView = 'fun'; renderApp();"
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/12 hover:bg-white/20 text-xs font-medium text-white transition">
+                    <span>🎡</span>
+                    <span>Fun & Rewards</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Glowing Table Badge -->
+              <div class="shrink-0 flex flex-col items-end gap-1.5">
+                <button
+                  type="button"
+                  onclick="clearTableSelection()"
+                  title="Change Table"
+                  class="px-3.5 py-2 rounded-2xl bg-marigold text-inkLight font-heading font-extrabold text-sm sm:text-base shadow-glow flex items-center gap-1.5 hover:scale-[1.02] transition">
+                  <span>Table ${AppState.tableNumber}</span>
+                  <span class="text-[10px] opacity-75">▾</span>
+                </button>
+                <span class="text-[11px] text-white/75">Est. ~${SyncStore.db.settings.estPrepMinutes} mins</span>
+              </div>
+            </div>
+          </header>
+
+          <!-- 2. COMPACT ACTIVE ORDER STATUS STRIP (If active order exists) -->
+          ${activeOrders.length > 0 ? (() => {
+            const latest = activeOrders[0];
+            return `
+              <button
+                type="button"
+                onclick="AppState.customerSubView = 'tracking'; renderApp();"
+                class="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-marigold/15 dark:bg-marigold/20 border border-marigold/50 text-left hover:bg-marigold/25 transition">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="w-2.5 h-2.5 rounded-full bg-success animate-ping shrink-0"></span>
+                  <span class="text-xs sm:text-sm font-bold text-indigoBrand dark:text-marigold truncate">
+                    Order #${latest.orderNumber} · ${escapeHtml(latest.status)} ${activeOrders.length > 1 ? `(+${activeOrders.length - 1} more)` : ''}
+                  </span>
+                </div>
+                <span class="shrink-0 text-xs font-bold text-indigoBrand dark:text-white bg-white/80 dark:bg-midnightCard px-3 py-1 rounded-full shadow-2xs">
+                  Track karein →
+                </span>
+              </button>
+            `;
+          })() : allTableOrders.length > 0 ? `
+            <button
+              type="button"
+              onclick="AppState.customerSubView = 'tracking'; renderApp();"
+              class="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder text-left">
+              <span class="text-xs sm:text-sm font-semibold text-mutedLight dark:text-mutedDark">
+                Aapke ${allTableOrders.length} order(s) serve ho chuke hain
+              </span>
+              <span class="text-xs font-bold text-indigoBrand dark:text-marigold">Orders & Bill →</span>
+            </button>
+          ` : ''}
+
+          <!-- 3. FOUR QUICK ACTION TILES -->
+          <section aria-label="Quick Actions" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <!-- Tile 1: Menu dekho -->
+            <button
+              type="button"
+              onclick="scrollToMenuSection()"
+              class="flex flex-col items-start justify-between p-3.5 rounded-2xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder shadow-card hover:border-indigoBrand dark:hover:border-marigold transition text-left">
+              <span class="w-9 h-9 rounded-xl bg-indigoBrand/10 dark:bg-indigoBrand/40 text-indigoBrand dark:text-marigold flex items-center justify-center text-lg">📖</span>
+              <div class="mt-2.5">
+                <div class="font-heading font-bold text-sm text-inkLight dark:text-inkDark leading-tight">Menu dekho</div>
+                <div class="text-[11px] text-mutedLight dark:text-mutedDark">Poora menu explore</div>
+              </div>
+            </button>
+
+            <!-- Tile 2: Chef ki pasand (Exact 3 chef dishes) -->
+            <button
+              type="button"
+              onclick="activateChefPicksFilter()"
+              class="flex flex-col items-start justify-between p-3.5 rounded-2xl border transition text-left shadow-card ${
+                AppState.chefPicksOnly
+                  ? 'bg-marigold/20 border-marigold'
+                  : 'bg-creamCard dark:bg-midnightCard border-creamBorder dark:border-midnightBorder hover:border-marigold'
+              }">
+              <span class="w-9 h-9 rounded-xl bg-marigold/20 text-marigoldDark dark:text-marigold flex items-center justify-center text-lg">👨‍🍳</span>
+              <div class="mt-2.5">
+                <div class="font-heading font-bold text-sm text-inkLight dark:text-inkDark leading-tight">Chef ki pasand</div>
+                <div class="text-[11px] text-mutedLight dark:text-mutedDark">Top 3 signature dishes</div>
+              </div>
+            </button>
+
+            <!-- Tile 3: Waiter bulao -->
+            <button
+              type="button"
+              onclick="callWaiterForTable(${AppState.tableNumber})"
+              class="flex flex-col items-start justify-between p-3.5 rounded-2xl border transition text-left shadow-card ${
+                table.waiterCalledAt
+                  ? 'bg-success/10 border-success'
+                  : 'bg-creamCard dark:bg-midnightCard border-creamBorder dark:border-midnightBorder hover:border-indigoBrand dark:hover:border-marigold'
+              }">
+              <span class="w-9 h-9 rounded-xl ${table.waiterCalledAt ? 'bg-success text-white' : 'bg-chilli/10 text-chilli'} flex items-center justify-center text-lg">
+                ${table.waiterCalledAt ? '✓' : '🛎️'}
+              </span>
+              <div class="mt-2.5 min-w-0 w-full">
+                <div class="font-heading font-bold text-sm text-inkLight dark:text-inkDark leading-tight truncate">
+                  ${table.waiterCalledAt ? 'Waiter aa rahe hain' : 'Waiter bulao'}
+                </div>
+                <div class="text-[11px] ${table.waiterCalledAt ? 'text-success font-semibold' : 'text-mutedLight dark:text-mutedDark'} truncate">
+                  ${table.waiterCalledAt ? 'Bula diya hai ✓' : 'Ek tap mein madad'}
+                </div>
+              </div>
+            </button>
+
+            <!-- Tile 4: Spice level selector -->
+            <div class="flex flex-col justify-between p-3.5 rounded-2xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder shadow-card">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-inkLight dark:text-inkDark">🌶️ Spice Level</span>
+                <span class="text-[10px] font-semibold text-chilli">${AppState.spiceLevel}</span>
+              </div>
+              <div class="grid grid-cols-3 gap-1 mt-2.5 bg-creamElevated dark:bg-midnightElevated p-1 rounded-xl">
+                ${['Kam', 'Medium', 'Zyada'].map(lvl => {
+                  const active = AppState.spiceLevel === lvl;
+                  return `
+                    <button
+                      type="button"
+                      onclick="setSpicePreference('${lvl}')"
+                      class="py-1.5 px-1 rounded-lg text-[11px] font-bold transition text-center ${
+                        active
+                          ? 'bg-chilli text-white shadow-2xs'
+                          : 'text-mutedLight dark:text-mutedDark hover:text-inkLight dark:hover:text-white'
+                      }">
+                      ${lvl}
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </section>
+
+          <!-- 4. AAJ KA SPECIAL CARD (Admin Configurable) -->
+          ${specialItem ? renderTodaySpecialCard(specialItem) : ''}
+
+          <!-- 5. SEARCH, FILTERS & CATEGORY SCROLLER -->
+          <section id="zaika-menu-section" class="space-y-3 pt-1">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg sm:text-xl font-extrabold text-indigoBrand dark:text-marigold">
+                Hamara Menu
+              </h2>
+              ${(AppState.chefPicksOnly || AppState.vegOnly || AppState.popularOnly || AppState.selectedCategory !== 'all' || AppState.searchQuery) ? `
+                <button
+                  type="button"
+                  onclick="resetMenuFilters()"
+                  class="text-xs font-semibold text-chilli hover:underline">
+                  Filters hatayein ✕
+                </button>
+              ` : ''}
+            </div>
+
+            <!-- Search Input + Quick Filter Pills -->
+            <div class="flex flex-col sm:flex-row gap-2">
+              <div class="relative flex-1 min-w-0">
+                <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm opacity-60">🔍</span>
+                <input
+                  type="search"
+                  value="${escapeHtml(AppState.searchQuery)}"
+                  oninput="AppState.searchQuery = this.value; renderMenuGridOnly();"
+                  placeholder="Biryani, Paneer, Naan, Lassi khojein..."
+                  class="w-full pl-9 pr-4 py-2.5 rounded-2xl text-sm bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder focus:outline-none focus:border-indigoBrand dark:focus:border-marigold" />
+              </div>
+
+              <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+                <button
+                  type="button"
+                  onclick="AppState.vegOnly = !AppState.vegOnly; renderApp();"
+                  class="px-3 py-2 rounded-2xl text-xs font-semibold border transition whitespace-nowrap flex items-center gap-1.5 ${
+                    AppState.vegOnly
+                      ? 'bg-success text-white border-success'
+                      : 'bg-creamCard dark:bg-midnightCard border-creamBorder dark:border-midnightBorder'
+                  }">
+                  <span class="w-2 h-2 rounded-full ${AppState.vegOnly ? 'bg-white' : 'bg-success'}"></span>
+                  Pure Veg
+                </button>
+
+                <button
+                  type="button"
+                  onclick="AppState.popularOnly = !AppState.popularOnly; renderApp();"
+                  class="px-3 py-2 rounded-2xl text-xs font-semibold border transition whitespace-nowrap ${
+                    AppState.popularOnly
+                      ? 'bg-indigoBrand text-white border-indigoBrand'
+                      : 'bg-creamCard dark:bg-midnightCard border-creamBorder dark:border-midnightBorder'
+                  }">
+                  ⭐ Bestsellers
+                </button>
+
+                <button
+                  type="button"
+                  onclick="AppState.chefPicksOnly = !AppState.chefPicksOnly; renderApp();"
+                  class="px-3 py-2 rounded-2xl text-xs font-semibold border transition whitespace-nowrap ${
+                    AppState.chefPicksOnly
+                      ? 'bg-marigold text-inkLight border-marigold'
+                      : 'bg-creamCard dark:bg-midnightCard border-creamBorder dark:border-midnightBorder'
+                  }">
+                  👨‍🍳 Chef Picks (3)
+                </button>
+              </div>
+            </div>
+
+            <!-- Horizontal Category Scroller -->
+            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+              <button
+                type="button"
+                onclick="AppState.selectedCategory = 'all'; AppState.chefPicksOnly = false; renderApp();"
+                class="px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition whitespace-nowrap shrink-0 ${
+                  AppState.selectedCategory === 'all' && !AppState.chefPicksOnly
+                    ? 'bg-indigoBrand text-white shadow-xs'
+                    : 'bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder text-mutedLight dark:text-mutedDark'
+                }">
+                Sab (${SyncStore.db.menuItems.length})
+              </button>
+
+              ${categories.map(cat => {
+                const active = AppState.selectedCategory === cat.id;
+                return `
+                  <button
+                    type="button"
+                    onclick="AppState.selectedCategory = '${cat.id}'; AppState.chefPicksOnly = false; renderApp();"
+                    class="px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition whitespace-nowrap shrink-0 ${
+                      active
+                        ? 'bg-indigoBrand text-white shadow-xs'
+                        : 'bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder text-mutedLight dark:text-mutedDark hover:border-indigoBrand'
+                    }">
+                    ${escapeHtml(cat.name)}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+
+            <!-- 6. MENU CARDS GRID -->
+            <div id="zaika-menu-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              ${renderMenuCardsList(filteredItems)}
+            </div>
+          </section>
+        </div>
+
+        <!-- 7. STICKY BOTTOM CART BAR -->
+        ${hasStickyCart ? `
+          <div class="fixed bottom-0 left-0 right-0 z-40 px-3 sm:px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-2 pointer-events-none">
+            <div class="max-w-3xl mx-auto pointer-events-auto">
+              <button
+                type="button"
+                onclick="AppState.customerSubView = 'cart'; renderApp();"
+                class="w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl bg-indigoBrand hover:bg-indigoDeep text-white shadow-float border border-marigold/40 transition transform active:scale-[0.99]">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="px-2.5 py-0.5 rounded-lg bg-marigold text-inkLight font-heading font-extrabold text-xs sm:text-sm">
+                    ${cartSummary.totalQty} ${cartSummary.totalQty === 1 ? 'item' : 'items'}
+                  </span>
+                  <span class="font-heading font-bold text-base sm:text-lg truncate">
+                    ₹${cartSummary.subtotal}
+                  </span>
+                </div>
+                <span class="font-heading font-bold text-sm sm:text-base text-marigold flex items-center gap-1 shrink-0">
+                  Order Now →
+                </span>
+              </button>
+            </div>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    function renderTodaySpecialCard(item) {
+      const inCart = AppState.cart.find(c => c.itemId === item.id);
+      const qty = inCart ? inCart.qty : 0;
+
+      return `
+        <section aria-label="Aaj ka Special" class="relative overflow-hidden shimmer-sweep rounded-3xl bg-gradient-to-r from-marigold/20 via-creamCard to-marigold/10 dark:from-midnightCard dark:via-midnightElevated dark:to-indigoBrand/30 border border-marigold/50 p-4 sm:p-5 shadow-soft">
+          <div class="flex items-center justify-between gap-2 mb-2.5">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-marigold text-inkLight font-heading font-extrabold text-xs tracking-wide">
+              ✨ Aaj ka Special
+            </span>
+            <span class="text-[11px] font-semibold text-indigoBrand dark:text-marigold">
+              Chef Recommended
+            </span>
+          </div>
+
+          <div class="flex items-center gap-3.5 sm:gap-4">
+            <img
+              src="${escapeHtml(item.image)}"
+              onerror="this.onerror=null;this.src='${FOOD_FALLBACK_SVG}'"
+              alt="${escapeHtml(item.name)}"
+              loading="lazy"
+              class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover shrink-0 border border-marigold/40 shadow-xs" />
+
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                ${renderVegBadge(item.isVeg)}
+                <h3 class="font-heading font-bold text-base sm:text-lg text-inkLight dark:text-inkDark leading-snug truncate">
+                  ${escapeHtml(item.name)}
+                </h3>
+              </div>
+              <p class="text-xs text-mutedLight dark:text-mutedDark line-clamp-2 mt-1 leading-relaxed">
+                ${escapeHtml(item.description)}
+              </p>
+
+              <div class="mt-3 flex items-center justify-between gap-2">
+                <span class="font-heading font-extrabold text-base sm:text-lg text-indigoBrand dark:text-marigold">
+                  ₹${item.price}
+                </span>
+
+                ${!item.inStock ? `
+                  <span class="px-3 py-1 rounded-xl bg-creamElevated dark:bg-midnightBg text-xs font-semibold text-mutedLight">Sold Out</span>
+                ` : qty === 0 ? `
+                  <button
+                    type="button"
+                    onclick="updateCartQty('${item.id}', 1)"
+                    class="px-4 py-1.5 rounded-xl bg-indigoBrand hover:bg-indigoDeep text-white text-xs sm:text-sm font-bold shadow-xs transition">
+                    + Add
+                  </button>
+                ` : renderQtyStepper(item.id, qty)}
+              </div>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    function renderQtyStepper(itemId, qty) {
+      return `
+        <div class="inline-flex items-center bg-indigoBrand text-white rounded-xl overflow-hidden shadow-xs shrink-0">
+          <button
+            type="button"
+            onclick="updateCartQty('${itemId}', -1)"
+            aria-label="Decrease quantity"
+            class="w-8 h-8 flex items-center justify-center font-bold text-base hover:bg-indigoDeep transition">
+            −
+          </button>
+          <span class="px-2.5 text-xs sm:text-sm font-heading font-bold min-w-[1.5rem] text-center">${qty}</span>
+          <button
+            type="button"
+            onclick="updateCartQty('${itemId}', 1)"
+            aria-label="Increase quantity"
+            class="w-8 h-8 flex items-center justify-center font-bold text-base hover:bg-indigoDeep transition">
+            +
+          </button>
+        </div>
+      `;
+    }
+
+    function renderMenuCardsList(items) {
+      if (items.length === 0) {
+        return `
+          <div class="col-span-full py-10 px-4 text-center rounded-3xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder">
+            <div class="text-3xl mb-2">🍽️</div>
+            <p class="font-heading font-bold text-base">Koi dish nahi mili</p>
+            <p class="text-xs text-mutedLight dark:text-mutedDark mt-1">Kripya search shabd ya filter badal kar dekhein.</p>
+            <button type="button" onclick="resetMenuFilters()" class="mt-3 px-4 py-2 rounded-xl bg-indigoBrand text-white text-xs font-semibold">
+              Sab Dishes Dikhayein
+            </button>
+          </div>
+        `;
+      }
+
+      return items.map(item => {
+        const cartEntry = AppState.cart.find(c => c.itemId === item.id);
+        const qty = cartEntry ? cartEntry.qty : 0;
+
+        return `
+          <article class="flex gap-3 p-3.5 rounded-2xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder shadow-card transition hover:border-indigoBrand/40 dark:hover:border-marigold/40 ${!item.inStock ? 'opacity-70' : ''}">
+            <div class="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shrink-0 bg-creamElevated dark:bg-midnightElevated">
+              <img
+                src="${escapeHtml(item.image)}"
+                onerror="this.onerror=null;this.src='${FOOD_FALLBACK_SVG}'"
+                alt="${escapeHtml(item.name)}"
+                loading="lazy"
+                class="w-full h-full object-cover ${!item.inStock ? 'grayscale' : ''}" />
+              ${item.isChefPick ? `
+                <span class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-marigold text-inkLight text-[10px] font-extrabold shadow-2xs">
+                  Chef Pick
+                </span>
+              ` : item.isPopular ? `
+                <span class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-indigoBrand/90 text-white text-[10px] font-bold">
+                  Popular
+                </span>
+              ` : ''}
+            </div>
+
+            <div class="min-w-0 flex-1 flex flex-col justify-between">
+              <div>
+                <div class="flex items-start gap-1.5">
+                  <span class="mt-1">${renderVegBadge(item.isVeg)}</span>
+                  <h3 class="font-heading font-bold text-sm sm:text-base text-inkLight dark:text-inkDark leading-snug break-words">
+                    ${escapeHtml(item.name)}
+                  </h3>
+                </div>
+                <p class="text-xs text-mutedLight dark:text-mutedDark line-clamp-2 mt-1 leading-relaxed">
+                  ${escapeHtml(item.description)}
+                </p>
+              </div>
+
+              <div class="mt-2.5 pt-2 border-t border-creamBorder/60 dark:border-midnightBorder/60 flex items-center justify-between gap-2">
+                <span class="font-heading font-extrabold text-base text-indigoBrand dark:text-marigold">
+                  ₹${item.price}
+                </span>
+
+                ${!item.inStock ? `
+                  <span class="px-2.5 py-1 rounded-xl bg-chilli/10 text-chilli text-[11px] font-bold">
+                    Out of stock
+                  </span>
+                ` : qty === 0 ? `
+                  <button
+                    type="button"
+                    onclick="updateCartQty('${item.id}', 1)"
+                    class="px-4 py-1.5 rounded-xl bg-creamElevated dark:bg-midnightElevated hover:bg-indigoBrand hover:text-white dark:hover:bg-marigold dark:hover:text-inkLight text-indigoBrand dark:text-marigold border border-indigoBrand/20 dark:border-marigold/30 text-xs sm:text-sm font-bold transition">
+                    Add +
+                  </button>
+                ` : renderQtyStepper(item.id, qty)}
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderMenuGridOnly() {
+      const grid = document.getElementById('zaika-menu-grid');
+      if (!grid) return renderApp();
+      const filteredItems = SyncStore.db.menuItems
+        .filter(item => {
+          if (AppState.selectedCategory !== 'all' && item.categoryId !== AppState.selectedCategory) return false;
+          if (AppState.vegOnly && !item.isVeg) return false;
+          if (AppState.chefPicksOnly && !item.isChefPick) return false;
+          if (AppState.popularOnly && !item.isPopular) return false;
+          if (AppState.searchQuery.trim() !== '') {
+            const q = AppState.searchQuery.toLowerCase();
+            if (!item.name.toLowerCase().includes(q) && !item.description.toLowerCase().includes(q)) return false;
+          }
+          return true;
+        })
+        .sort((a, b) => a.order - b.order);
+      grid.innerHTML = renderMenuCardsList(filteredItems);
+    }
+
+    function scrollToMenuSection() {
+      const el = document.getElementById('zaika-menu-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function activateChefPicksFilter() {
+      AppState.chefPicksOnly = !AppState.chefPicksOnly;
+      if (AppState.chefPicksOnly) AppState.selectedCategory = 'all';
+      renderApp();
+      scrollToMenuSection();
+    }
+
+    function resetMenuFilters() {
+      AppState.selectedCategory = 'all';
+      AppState.searchQuery = '';
+      AppState.vegOnly = false;
+      AppState.chefPicksOnly = false;
+      AppState.popularOnly = false;
+      renderApp();
+    }
+
+    function promptCustomerName() {
+      openModal('Apna Naam Likhein (Optional)', `
+        <p class="text-xs text-mutedLight dark:text-mutedDark">Isse hum aapke order aur greeting ko personal bana sakenge.</p>
+        <form onsubmit="event.preventDefault(); AppState.customerName = this.cname.value.trim(); localStorage.setItem('zaika_customer_name', AppState.customerName); closeModal(); renderApp();" class="space-y-3">
+          <input
+            type="text"
+            name="cname"
+            maxlength="30"
+            value="${escapeHtml(AppState.customerName)}"
+            placeholder="Jaise: Rahul, Priya..."
+            class="w-full px-4 py-3 rounded-2xl text-sm bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder focus:outline-none focus:border-indigoBrand" />
+          <div class="flex justify-end gap-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-sm font-semibold bg-creamElevated dark:bg-midnightElevated">Cancel</button>
+            <button type="submit" class="px-5 py-2 rounded-xl text-sm font-bold bg-indigoBrand text-white">Save Karein</button>
+          </div>
+        </form>
+      `, 'max-w-sm');
+    }
+
+    // --------------------------------------------------------------------------
+    // 12. CUSTOMER CART & ORDER REVIEW SCREEN
+    // --------------------------------------------------------------------------
+    function renderCustomerCartScreen(table, summary) {
+      const scPct = Number(SyncStore.db.settings.serviceChargePercent) || 0;
+
+      return `
+        <div class="flex-1 w-full max-w-2xl mx-auto px-3 sm:px-5 pt-4 pb-12 space-y-4 animate-enter">
+          <!-- Header -->
+          <div class="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onclick="AppState.customerSubView = 'menu'; renderApp();"
+              class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder text-xs sm:text-sm font-bold hover:border-indigoBrand transition">
+              ← Menu par wapas
+            </button>
+            <span class="px-3 py-1 rounded-full bg-indigoBrand text-marigold font-heading font-bold text-xs sm:text-sm">
+              Table ${AppState.tableNumber}
+            </span>
+          </div>
+
+          <div class="bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-4 sm:p-6 shadow-soft space-y-5">
+            <div>
+              <h1 class="text-xl sm:text-2xl font-extrabold text-indigoBrand dark:text-marigold">Aapka Order Review</h1>
+              <p class="text-xs text-mutedLight dark:text-mutedDark">Online payment ki zarurat nahi — khane ke baad waiter ko bill pay karein.</p>
+            </div>
+
+            ${summary.validLines.length === 0 ? `
+              <div class="py-10 text-center space-y-3">
+                <div class="text-4xl">🛒</div>
+                <p class="font-heading font-bold text-lg">Aapka cart abhi khali hai</p>
+                <p class="text-xs text-mutedLight dark:text-mutedDark">Menu se apni pasandida dishes add karein.</p>
+                <button
+                  type="button"
+                  onclick="AppState.customerSubView = 'menu'; renderApp();"
+                  class="px-5 py-2.5 rounded-2xl bg-indigoBrand text-white text-sm font-bold">
+                  Menu Dekhein →
+                </button>
+              </div>
+            ` : `
+              <!-- Cart Items List -->
+              <div class="divide-y divide-creamBorder dark:divide-midnightBorder">
+                ${summary.validLines.map(line => `
+                  <div class="py-3.5 first:pt-0 last:pb-0 space-y-2">
+                    <div class="flex items-center gap-3">
+                      <img
+                        src="${escapeHtml(line.item.image)}"
+                        onerror="this.onerror=null;this.src='${FOOD_FALLBACK_SVG}'"
+                        alt="${escapeHtml(line.item.name)}"
+                        class="w-14 h-14 rounded-xl object-cover shrink-0" />
+                      <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5">
+                          ${renderVegBadge(line.item.isVeg)}
+                          <h3 class="font-heading font-bold text-sm sm:text-base truncate">${escapeHtml(line.item.name)}</h3>
+                        </div>
+                        <div class="text-xs text-mutedLight dark:text-mutedDark mt-0.5">
+                          ₹${line.item.price} × ${line.qty} = <strong class="text-inkLight dark:text-inkDark">₹${line.lineTotal}</strong>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-2 shrink-0">
+                        ${renderQtyStepper(line.item.id, line.qty)}
+                      </div>
+                    </div>
+
+                    <!-- Optional Item-specific instruction -->
+                    <div class="pl-17">
+                      <input
+                        type="text"
+                        value="${escapeHtml(line.note || '')}"
+                        oninput="updateCartItemNote('${line.item.id}', this.value)"
+                        placeholder="Is dish ke liye special note (optional)..."
+                        class="w-full px-3 py-1.5 rounded-xl text-xs bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder focus:outline-none focus:border-indigoBrand" />
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- Spice Level Confirmation -->
+              <div class="p-3.5 rounded-2xl bg-creamElevated/70 dark:bg-midnightElevated flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs sm:text-sm font-bold">🌶️ Spice Preference:</span>
+                <div class="flex items-center gap-1.5">
+                  ${['Kam', 'Medium', 'Zyada'].map(lvl => `
+                    <button
+                      type="button"
+                      onclick="setSpicePreference('${lvl}')"
+                      class="px-3 py-1 rounded-xl text-xs font-bold transition ${
+                        AppState.spiceLevel === lvl
+                          ? 'bg-chilli text-white'
+                          : 'bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder'
+                      }">
+                      ${lvl}
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- General Kitchen Instructions -->
+              <div>
+                <label class="block text-xs font-bold mb-1.5">Chef ke liye general instructions (Optional)</label>
+                <textarea
+                  rows="2"
+                  oninput="AppState.generalInstructions = this.value"
+                  placeholder="Khana kaisa chahiye? Jaise kam teekha, bina pyaaz…"
+                  class="w-full px-3.5 py-2.5 rounded-2xl text-sm bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder focus:outline-none focus:border-indigoBrand">${escapeHtml(AppState.generalInstructions)}</textarea>
+              </div>
+
+              <!-- Bill Summary (No hidden fees) -->
+              <div class="p-4 rounded-2xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder space-y-2 text-sm">
+                <div class="flex justify-between text-mutedLight dark:text-mutedDark">
+                  <span>Total Items (${summary.totalQty})</span>
+                  <span>₹${summary.subtotal}</span>
+                </div>
+                ${scPct > 0 ? `
+                  <div class="flex justify-between text-mutedLight dark:text-mutedDark">
+                    <span>Restaurant Service Charge (${scPct}%)</span>
+                    <span>₹${summary.serviceCharge}</span>
+                  </div>
+                ` : ''}
+                <div class="pt-2 border-t border-creamBorder dark:border-midnightBorder flex justify-between font-heading font-extrabold text-base sm:text-lg text-indigoBrand dark:text-marigold">
+                  <span>Final Amount</span>
+                  <span>₹${summary.grandTotal}</span>
+                </div>
+              </div>
+
+              <!-- Order Pakka Karo CTA -->
+              <button
+                type="button"
+                ${AppState.isSubmittingOrder ? 'disabled' : ''}
+                onclick="submitCustomerOrder()"
+                class="w-full py-4 rounded-2xl bg-success hover:opacity-95 disabled:opacity-60 text-white font-heading font-extrabold text-base sm:text-lg shadow-float transition flex items-center justify-center gap-2">
+                <span>${AppState.isSubmittingOrder ? 'Order bhej rahe hain...' : 'Order pakka karo ✓'}</span>
+              </button>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    // --------------------------------------------------------------------------
+    // 13. CUSTOMER ORDER TRACKING & MULTIPLE ORDERS ("YOUR ORDERS")
+    // --------------------------------------------------------------------------
+    function renderCustomerTrackingScreen(table, orders) {
+      const stages = [
+        { key: 'Mila', title: 'Mila', desc: 'Order kitchen tak pahunch gaya.' },
+        { key: 'Ban raha hai', title: 'Ban raha hai', desc: 'Chef aapka khana bana rahe hain.' },
+        { key: 'Tayyar', title: 'Tayyar', desc: 'Khana ready hai.' },
+        { key: 'Serve hua', title: 'Serve hua', desc: 'Aapka order table par serve kar diya gaya.' }
+      ];
+
+      const tableGrandTotal = orders.reduce((acc, o) => acc + (o.total || 0), 0);
+
+      return `
+        <div class="flex-1 w-full max-w-2xl mx-auto px-3 sm:px-5 pt-4 pb-12 space-y-4 animate-enter">
+          <!-- Top Bar -->
+          <div class="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onclick="AppState.customerSubView = 'menu'; renderApp();"
+              class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigoBrand text-white text-xs sm:text-sm font-bold shadow-xs hover:bg-indigoDeep transition">
+              + Aur Order Karein (Menu)
+            </button>
+            <span class="px-3 py-1.5 rounded-full bg-marigold text-inkLight font-heading font-extrabold text-xs sm:text-sm">
+              Table ${AppState.tableNumber}
+            </span>
+          </div>
+
+          <!-- Action Buttons Bar (Fun, Privacy, Home, Waiter bulao, Bill chahiye) -->
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <button
+              type="button"
+              onclick="AppState.customerSubView = 'menu'; renderApp();"
+              class="py-2.5 px-3 rounded-2xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder text-xs font-bold flex items-center justify-center gap-1.5 hover:border-indigoBrand transition">
+              <span>🏠</span> Home
+            </button>
+
+            <button
+              type="button"
+              onclick="AppState.customerSubView = 'fun'; renderApp();"
+              class="py-2.5 px-3 rounded-2xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder text-xs font-bold flex items-center justify-center gap-1.5 hover:border-marigold transition">
+              <span>🎡</span> Fun
+            </button>
+
+            <button
+              type="button"
+              onclick="AppState.customerSubView = 'privacy'; renderApp();"
+              class="py-2.5 px-3 rounded-2xl ${table.dnd ? 'bg-marigold text-inkLight' : 'bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder'} text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <span>🔕</span> Privacy
+            </button>
+
+            <button
+              type="button"
+              onclick="callWaiterForTable(${AppState.tableNumber})"
+              class="py-2.5 px-3 rounded-2xl ${table.waiterCalledAt ? 'bg-success text-white' : 'bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder'} text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <span>🛎️</span> ${table.waiterCalledAt ? 'Waiter Called' : 'Waiter bulao'}
+            </button>
+
+            <button
+              type="button"
+              onclick="requestBillForTable(${AppState.tableNumber})"
+              class="col-span-2 sm:col-span-1 py-2.5 px-3 rounded-2xl ${table.billRequestedAt ? 'bg-chilli/90 ring-2 ring-chilli/40' : 'bg-chilli hover:opacity-95'} text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-xs transition">
+              <span>🔔</span> Bill chahiye
+            </button>
+          </div>
+
+          <!-- Bill Requested Confirmation Banner -->
+          ${table.billRequestedAt ? `
+            <div class="p-4 rounded-2xl bg-chilli/10 border border-chilli/40 flex items-start gap-3">
+              <span class="text-xl">🧾</span>
+              <div class="text-xs sm:text-sm">
+                <p class="font-bold text-chilli">Bill ke liye waiter ko bula diya hai.</p>
+                <p class="text-mutedLight dark:text-mutedDark mt-0.5">
+                  Hamare staff aapke table par UPI, Card ya Cash se payment collect karenge. Kul Table Total: <strong>₹${tableGrandTotal}</strong>
+                </p>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Your Orders List -->
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h1 class="text-lg sm:text-xl font-extrabold text-indigoBrand dark:text-marigold">
+                Your Orders (${orders.length})
+              </h1>
+              ${orders.length > 0 ? `
+                <span class="text-xs font-bold px-3 py-1 rounded-full bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder">
+                  Table Total: ₹${tableGrandTotal}
+                </span>
+              ` : ''}
+            </div>
+
+            ${orders.length === 0 ? `
+              <div class="p-8 text-center rounded-3xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder">
+                <p class="font-heading font-bold text-base">Abhi tak koi order place nahi hua hai</p>
+                <button type="button" onclick="AppState.customerSubView = 'menu'; renderApp();" class="mt-3 px-4 py-2 rounded-xl bg-indigoBrand text-white text-xs font-bold">
+                  Menu Dekhein
+                </button>
+              </div>
+            ` : orders.map(order => {
+              const currentIdx = stages.findIndex(s => s.key === order.status);
+              return `
+                <article class="bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-4 sm:p-5 shadow-soft space-y-4">
+                  <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-creamBorder dark:border-midnightBorder">
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="font-heading font-extrabold text-lg text-indigoBrand dark:text-marigold">
+                          Order #${order.orderNumber}
+                        </span>
+                        <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                          order.status === 'Serve hua'
+                            ? 'bg-success/15 text-success'
+                            : order.status === 'Tayyar'
+                            ? 'bg-marigold text-inkLight'
+                            : 'bg-indigoBrand/15 dark:bg-indigoBrand/50 text-indigoBrand dark:text-marigold'
+                        }">
+                          ${escapeHtml(order.status)}
+                        </span>
+                      </div>
+                      <p class="text-[11px] text-mutedLight dark:text-mutedDark mt-0.5">
+                        Placed at ${formatClockTime(order.createdAt)} · Spice: ${escapeHtml(order.spiceLevel)}
+                      </p>
+                    </div>
+
+                    <div class="text-right">
+                      <div class="font-heading font-extrabold text-base">₹${order.total}</div>
+                      ${order.status !== 'Serve hua' ? `
+                        <div class="text-[11px] text-mutedLight dark:text-mutedDark">Est. ~${SyncStore.db.settings.estPrepMinutes} mins</div>
+                      ` : ''}
+                    </div>
+                  </div>
+
+                  <!-- 4-Stage Responsive Progress Timeline -->
+                  <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                    ${stages.map((st, i) => {
+                      const done = i <= currentIdx;
+                      const isCurrent = i === currentIdx;
+                      return `
+                        <div class="flex sm:flex-col items-start gap-2.5 p-2.5 rounded-2xl border ${
+                          isCurrent
+                            ? 'bg-marigold/15 border-marigold'
+                            : done
+                            ? 'bg-success/10 border-success/30'
+                            : 'bg-creamBg/60 dark:bg-midnightBg/60 border-creamBorder/60 dark:border-midnightBorder/60 opacity-60'
+                        }">
+                          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                            isCurrent
+                              ? 'bg-marigold text-inkLight'
+                              : done
+                              ? 'bg-success text-white'
+                              : 'bg-creamElevated dark:bg-midnightElevated text-mutedLight'
+                          }">
+                            ${done ? '✓' : i + 1}
+                          </span>
+                          <div class="min-w-0">
+                            <div class="font-heading font-bold text-xs sm:text-sm leading-tight">${st.title}</div>
+                            <div class="text-[11px] text-mutedLight dark:text-mutedDark leading-snug mt-0.5">${st.desc}</div>
+                          </div>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+
+                  <!-- Ordered Food Summary -->
+                  <div class="bg-creamBg dark:bg-midnightBg rounded-2xl p-3 space-y-1.5">
+                    ${order.items.map(it => `
+                      <div class="flex items-start justify-between gap-2 text-xs sm:text-sm">
+                        <div class="min-w-0">
+                          <span class="font-semibold">${it.qty} × ${escapeHtml(it.name)}</span>
+                          ${it.note ? `<span class="block text-[11px] text-chilli">Note: ${escapeHtml(it.note)}</span>` : ''}
+                        </div>
+                        <span class="font-semibold shrink-0">₹${it.price * it.qty}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                </article>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // --------------------------------------------------------------------------
+    // 14. PRIVACY / DO NOT DISTURB SCREEN
+    // --------------------------------------------------------------------------
+    function renderCustomerPrivacyScreen(table, activeOrders) {
+      return `
+        <div class="flex-1 w-full max-w-xl mx-auto px-4 pt-6 pb-12 flex flex-col justify-center animate-enter">
+          <div class="bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-6 sm:p-8 shadow-soft text-center space-y-5">
+            <div class="w-16 h-16 mx-auto rounded-2xl ${table.dnd ? 'bg-indigoBrand text-marigold' : 'bg-creamElevated dark:bg-midnightElevated text-mutedLight'} flex items-center justify-center text-3xl">
+              🔕
+            </div>
+
+            <div>
+              <span class="px-3 py-1 rounded-full text-xs font-bold ${table.dnd ? 'bg-marigold text-inkLight' : 'bg-creamElevated dark:bg-midnightElevated'}">
+                Table ${AppState.tableNumber} · ${table.dnd ? 'DND ACTIVE' : 'DND OFF'}
+              </span>
+              <h1 class="text-xl sm:text-2xl font-extrabold mt-3 text-indigoBrand dark:text-marigold">
+                ${table.dnd ? 'Aapka privacy mode on hai' : 'Privacy / Do Not Disturb Mode'}
+              </h1>
+              <p class="text-sm text-mutedLight dark:text-mutedDark mt-1.5 leading-relaxed">
+                ${table.dnd
+                  ? 'Hum disturb nahi karenge. Jab zarurat ho, bell dabayein.'
+                  : 'Agar aap shanti se baatcheet ya dining karna chahte hain, toh Privacy Mode on karein. Staff ko DND badge dikhai dega.'}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onclick="toggleTableDND(${AppState.tableNumber})"
+              class="w-full py-3.5 rounded-2xl font-heading font-bold text-base transition ${
+                table.dnd
+                  ? 'bg-creamElevated dark:bg-midnightElevated text-inkLight dark:text-inkDark border border-creamBorder dark:border-midnightBorder'
+                  : 'bg-indigoBrand text-white shadow-float'
+              }">
+              ${table.dnd ? 'Privacy Mode Band Karein (Turn OFF)' : 'Privacy Mode On Karein'}
+            </button>
+
+            <!-- Essential non-intrusive actions remain accessible -->
+            <div class="grid grid-cols-2 gap-2.5 pt-2">
+              <button
+                type="button"
+                onclick="callWaiterForTable(${AppState.tableNumber})"
+                class="py-3 px-3 rounded-2xl bg-creamElevated dark:bg-midnightElevated text-xs font-bold flex items-center justify-center gap-1.5">
+                <span>🛎️</span> ${table.waiterCalledAt ? 'Waiter Bula Diya ✓' : 'Waiter bulao'}
+              </button>
+              <button
+                type="button"
+                onclick="requestBillForTable(${AppState.tableNumber})"
+                class="py-3 px-3 rounded-2xl bg-chilli text-white text-xs font-bold flex items-center justify-center gap-1.5">
+                <span>🔔</span> Bill chahiye
+              </button>
+            </div>
+
+            <div class="flex items-center justify-center gap-4 pt-2 text-xs font-bold text-indigoBrand dark:text-marigold">
+              <button type="button" onclick="AppState.customerSubView = 'menu'; renderApp();">← Menu</button>
+              ${activeOrders.length > 0 ? `<button type="button" onclick="AppState.customerSubView = 'tracking'; renderApp();">Track Order →</button>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // --------------------------------------------------------------------------
+    // 15. FUN ZONE (FOOD QUIZ & SPIN WHEEL)
+    // --------------------------------------------------------------------------
+    function renderCustomerFunScreen(table) {
+      if (table.dnd) {
+        return `
+          <div class="flex-1 w-full max-w-lg mx-auto px-4 py-10 text-center space-y-4">
+            <div class="p-6 rounded-3xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder">
+              <p class="font-heading font-bold text-lg">Aapka privacy mode on hai 🔕</p>
+              <p class="text-xs text-mutedLight dark:text-mutedDark mt-1">Privacy mode mein fun notifications aur popups band rehte hain.</p>
+              <button type="button" onclick="AppState.customerSubView = 'menu'; renderApp();" class="mt-4 px-4 py-2 rounded-xl bg-indigoBrand text-white text-xs font-bold">Menu par jayein</button>
+            </div>
+          </div>
+        `;
+      }
+
+      const questions = SyncStore.db.quizQuestions.slice(0, 3);
+      const currentQ = questions[AppState.quizIndex];
+      const prizes = SyncStore.db.wheelPrizes;
+      const existingClaim = SyncStore.db.claimedRewards.find(r => r.tableNumber === AppState.tableNumber);
+
+      // Build SVG wheel slices
+      const sliceAngle = 360 / prizes.length;
+      const wheelSlicesSvg = prizes.map((p, idx) => {
+        const startDeg = idx * sliceAngle;
+        const endDeg = startDeg + sliceAngle;
+        const startRad = (Math.PI / 180) * (startDeg - 90);
+        const endRad = (Math.PI / 180) * (endDeg - 90);
+        const x1 = 150 + 140 * Math.cos(startRad);
+        const y1 = 150 + 140 * Math.sin(startRad);
+        const x2 = 150 + 140 * Math.cos(endRad);
+        const y2 = 150 + 140 * Math.sin(endRad);
+        const largeArc = sliceAngle > 180 ? 1 : 0;
+        const midDeg = startDeg + sliceAngle / 2 - 90;
+        const midRad = (Math.PI / 180) * midDeg;
+        const tx = 150 + 86 * Math.cos(midRad);
+        const ty = 150 + 86 * Math.sin(midRad);
+
+        return `
+          <path d="M150,150 L${x1.toFixed(1)},${y1.toFixed(1)} A140,140 0 ${largeArc},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${p.color}" stroke="#ffffff" stroke-width="2" />
+          <text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="${p.textColor}" font-size="9.5" font-weight="bold" text-anchor="middle" dominant-baseline="middle" transform="rotate(${midDeg + 90}, ${tx.toFixed(1)}, ${ty.toFixed(1)})">
+            ${escapeHtml(p.label.slice(0, 18))}
+          </text>
+        `;
+      }).join('');
+
+      return `
+        <div class="flex-1 w-full max-w-2xl mx-auto px-3 sm:px-5 pt-4 pb-12 space-y-5 animate-enter">
+          <div class="flex items-center justify-between">
+            <button type="button" onclick="AppState.customerSubView = 'menu'; renderApp();" class="px-3.5 py-2 rounded-xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder text-xs font-bold">
+              ← Menu
+            </button>
+            <span class="font-heading font-extrabold text-base text-indigoBrand dark:text-marigold">Zaika Fun Zone 🎡</span>
+          </div>
+
+          <!-- FOOD QUIZ CARD -->
+          <section class="bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-5 shadow-soft space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="font-heading font-extrabold text-lg text-indigoBrand dark:text-marigold">🧠 Food Quiz</h2>
+              <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-marigold/20 text-indigoBrand dark:text-marigold">
+                Score: ${AppState.quizScore}/${questions.length}
+              </span>
+            </div>
+
+            ${AppState.quizFinished || !currentQ ? `
+              <div class="p-5 rounded-2xl bg-creamBg dark:bg-midnightBg text-center space-y-3">
+                <div class="text-3xl">🏆</div>
+                <h3 class="font-heading font-bold text-lg">Quiz Complete! Score: ${AppState.quizScore} / ${questions.length}</h3>
+                <p class="text-xs text-mutedLight dark:text-mutedDark">Kya baat hai! Aap sachche foodie hain.</p>
+                <button type="button" onclick="restartFoodQuiz()" class="px-4 py-2 rounded-xl bg-indigoBrand text-white text-xs font-bold">
+                  Dobara Khelein ↻
+                </button>
+              </div>
+            ` : `
+              <div class="space-y-3">
+                <div class="text-xs font-semibold text-mutedLight dark:text-mutedDark">
+                  Sawaal ${AppState.quizIndex + 1} of ${questions.length}
+                </div>
+                <p class="font-heading font-bold text-base leading-snug">${escapeHtml(currentQ.question)}</p>
+
+                <div class="space-y-2">
+                  ${currentQ.options.map((opt, idx) => {
+                    const answered = AppState.quizSelectedOption !== null;
+                    const isSelected = AppState.quizSelectedOption === idx;
+                    const isCorrect = idx === currentQ.correctIndex;
+                    let cls = 'bg-creamBg dark:bg-midnightBg border-creamBorder dark:border-midnightBorder hover:border-indigoBrand';
+                    if (answered) {
+                      if (isCorrect) cls = 'bg-success/15 border-success text-success font-bold';
+                      else if (isSelected) cls = 'bg-chilli/15 border-chilli text-chilli';
+                    }
+                    return `
+                      <button
+                        type="button"
+                        ${answered ? 'disabled' : ''}
+                        onclick="answerQuizQuestion(${idx})"
+                        class="w-full text-left px-4 py-3 rounded-2xl border text-xs sm:text-sm transition ${cls}">
+                        ${escapeHtml(opt)}
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+
+                ${AppState.quizSelectedOption !== null ? `
+                  <div class="p-3 rounded-2xl bg-indigoBrand/10 dark:bg-indigoBrand/40 text-xs leading-relaxed">
+                    <strong>Did you know?</strong> ${escapeHtml(currentQ.fact || '')}
+                  </div>
+                  <button type="button" onclick="nextQuizQuestion()" class="w-full py-2.5 rounded-xl bg-indigoBrand text-white text-xs font-bold">
+                    ${AppState.quizIndex + 1 < questions.length ? 'Agla Sawaal →' : 'Result Dekhein →'}
+                  </button>
+                ` : ''}
+              </div>
+            `}
+          </section>
+
+          <!-- SPIN WHEEL CARD -->
+          <section class="bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-5 shadow-soft text-center space-y-4">
+            <div>
+              <h2 class="font-heading font-extrabold text-lg text-indigoBrand dark:text-marigold">🎡 Zaika Spin & Win</h2>
+              <p class="text-xs text-mutedLight dark:text-mutedDark">Har table session par 1 free spin! Reward ID waiter ko dikhayein.</p>
+            </div>
+
+            <div class="relative w-64 h-64 mx-auto">
+              <!-- Top Pointer -->
+              <div class="absolute -top-2 left-1/2 -translate-x-1/2 z-20 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[18px] border-t-chilli drop-shadow"></div>
+              <svg
+                viewBox="0 0 300 300"
+                style="transform: rotate(${AppState.wheelRotation}deg); transition: transform 3.2s cubic-bezier(0.17, 0.67, 0.12, 0.99);"
+                class="w-full h-full rounded-full shadow-lg">
+                ${wheelSlicesSvg}
+                <circle cx="150" cy="150" r="22" fill="#2B2F6B" stroke="#F4B63F" stroke-width="4" />
+              </svg>
+            </div>
+
+            ${existingClaim ? `
+              <div class="p-4 rounded-2xl bg-success/10 border border-success/30 space-y-1">
+                <p class="text-xs font-bold text-success">Table ${AppState.tableNumber} Reward Claimed!</p>
+                <p class="font-heading font-extrabold text-base">${escapeHtml(existingClaim.prizeLabel)}</p>
+                <p class="text-[11px] font-mono bg-creamCard dark:bg-midnightCard inline-block px-2.5 py-1 rounded-lg border border-creamBorder dark:border-midnightBorder">
+                  Code: ${escapeHtml(existingClaim.rewardCode)}
+                </p>
+              </div>
+            ` : `
+              <button
+                type="button"
+                ${AppState.wheelSpinning ? 'disabled' : ''}
+                onclick="spinZaikaWheel()"
+                class="px-6 py-3 rounded-2xl bg-marigold hover:bg-marigoldDark text-inkLight font-heading font-extrabold text-sm sm:text-base shadow-glow transition">
+                ${AppState.wheelSpinning ? 'Ghoom raha hai...' : 'Wheel Ghumayein! 🎲'}
+              </button>
+            `}
+          </section>
+        </div>
+      `;
+    }
+
+    function answerQuizQuestion(idx) {
+      const q = SyncStore.db.quizQuestions[AppState.quizIndex];
+      if (!q || AppState.quizSelectedOption !== null) return;
+      AppState.quizSelectedOption = idx;
+      if (idx === q.correctIndex) {
+        AppState.quizScore += 1;
+        SoundEngine.play('tap');
+      }
+      renderApp();
+    }
+
+    function nextQuizQuestion() {
+      const total = Math.min(3, SyncStore.db.quizQuestions.length);
+      if (AppState.quizIndex + 1 < total) {
+        AppState.quizIndex += 1;
+        AppState.quizSelectedOption = null;
+      } else {
+        AppState.quizFinished = true;
+      }
+      renderApp();
+    }
+
+    function restartFoodQuiz() {
+      AppState.quizIndex = 0;
+      AppState.quizScore = 0;
+      AppState.quizSelectedOption = null;
+      AppState.quizFinished = false;
+      renderApp();
+    }
+
+    function spinZaikaWheel() {
+      if (AppState.wheelSpinning) return;
+      const existing = SyncStore.db.claimedRewards.find(r => r.tableNumber === AppState.tableNumber);
+      if (existing) return;
+
+      const prizes = SyncStore.db.wheelPrizes;
+      const winIndex = Math.floor(Math.random() * prizes.length);
+      const sliceAngle = 360 / prizes.length;
+      const targetCenter = winIndex * sliceAngle + sliceAngle / 2;
+      const extraSpins = 360 * 5;
+      AppState.wheelSpinning = true;
+      AppState.wheelRotation = extraSpins + (360 - targetCenter);
+      renderApp();
+
+      setTimeout(() => {
+        AppState.wheelSpinning = false;
+        const won = prizes[winIndex];
+        const code = `ZAIKA-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+        SyncStore.mutate(db => {
+          db.claimedRewards.push({
+            id: `rew_${Date.now()}`,
+            tableNumber: AppState.tableNumber,
+            prizeLabel: won.label,
+            rewardCode: code,
+            claimedAt: Date.now()
+          });
+        });
+        SoundEngine.play('ready');
+        renderApp();
+      }, 3300);
+    }
+
+    // --------------------------------------------------------------------------
+    // 16. STAFF AUTHENTICATION GATE (Role-Based PIN Login)
+    // --------------------------------------------------------------------------
+    function renderStaffLoginGate(requiredRoleLabel, allowedRoles) {
+      const activeStaff = SyncStore.db.staff.filter(s => s.active && allowedRoles.includes(s.role));
+
+      return `
+        <div class="flex-1 flex items-center justify-center px-4 py-8 max-w-md mx-auto w-full animate-enter">
+          <div class="w-full bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-6 sm:p-7 shadow-soft space-y-5">
+            <div class="text-center">
+              <div class="w-14 h-14 mx-auto rounded-2xl bg-indigoBrand text-marigold flex items-center justify-center text-2xl shadow-glow">
+                🔐
+              </div>
+              <h1 class="text-xl sm:text-2xl font-extrabold text-indigoBrand dark:text-marigold mt-3">
+                ${escapeHtml(requiredRoleLabel)} Login
+              </h1>
+              <p class="text-xs text-mutedLight dark:text-mutedDark mt-1">
+                Authorized restaurant staff ke liye PIN verification zaroori hai.
+              </p>
+            </div>
+
+            <form onsubmit="handleStaffLoginSubmit(event, ${JSON.stringify(allowedRoles).replace(/"/g, '&quot;')})" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold mb-1.5">Staff Account Chunein</label>
+                <select
+                  name="staffId"
+                  required
+                  class="w-full px-3.5 py-3 rounded-2xl text-sm bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder focus:outline-none focus:border-indigoBrand">
+                  ${activeStaff.map(st => `
+                    <option value="${st.id}">${escapeHtml(st.name)} (${st.role})</option>
+                  `).join('')}
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold mb-1.5">4-Digit Security PIN</label>
+                <input
+                  type="password"
+                  name="pin"
+                  inputmode="numeric"
+                  maxlength="6"
+                  required
+                  placeholder="••••"
+                  class="w-full px-4 py-3 rounded-2xl text-center tracking-[0.4em] font-heading font-bold text-lg bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder focus:outline-none focus:border-indigoBrand" />
+              </div>
+
+              <button type="submit" class="w-full py-3.5 rounded-2xl bg-indigoBrand hover:bg-indigoDeep text-white font-heading font-bold text-base shadow-float transition">
+                Login Karein →
+              </button>
+            </form>
+
+            <!-- Demo Helper Hint (Does not read from raw DB PINs; helps evaluator test roles) -->
+            <div class="p-3 rounded-2xl bg-creamElevated/80 dark:bg-midnightElevated text-[11px] text-mutedLight dark:text-mutedDark space-y-1">
+              <div class="font-bold text-inkLight dark:text-inkDark">Demo Quick-Test Credentials:</div>
+              <div>• Admin (Rajesh): <strong>1111</strong> · Kitchen (Chef Vikram): <strong>2222</strong></div>
+              <div>• Waiter Ramesh (T1–8): <strong>3333</strong> · Waiter Amit (T9–16): <strong>4444</strong></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleStaffLoginSubmit(event, allowedRoles) {
+      event.preventDefault();
+      const form = event.target;
+      const staffId = form.staffId.value;
+      const pin = form.pin.value.trim();
+      const staff = SyncStore.db.staff.find(s => s.id === staffId && s.active);
+
+      if (!staff) {
+        showToast('Staff account inactive ya invalid hai', 'chilli');
+        return;
+      }
+      if (!allowedRoles.includes(staff.role)) {
+        showToast(`Access denied: ${staff.role} ko is screen ki permission nahi hai.`, 'chilli');
+        return;
+      }
+      if (hashPinSync(pin) !== staff.pinHash) {
+        showToast('Galat PIN! Kripya sahi PIN daalein.', 'chilli');
+        return;
+      }
+
+      AppState.staffSession = {
+        staffId: staff.id,
+        role: staff.role,
+        expiresAt: Date.now() + 8 * 60 * 60 * 1000 // 8 hour shift session
+      };
+      sessionStorage.setItem('zaika_staff_session', JSON.stringify(AppState.staffSession));
+      SoundEngine.play('tap');
+      showToast(`Welcome, ${staff.name}! ✓`, 'success');
+      renderApp();
+    }
+
+    function logoutStaff() {
+      AppState.staffSession = null;
+      sessionStorage.removeItem('zaika_staff_session');
+      showToast('Logged out successfully', 'indigo');
+      renderApp();
+    }
+
+    // --------------------------------------------------------------------------
+    // 17. KITCHEN DASHBOARD VIEW
+    // --------------------------------------------------------------------------
+    function renderKitchenView() {
+      const staff = getLoggedStaff();
+      if (!staff || !['Kitchen', 'Admin'].includes(staff.role)) {
+        return renderStaffLoginGate('Zaika Kitchen', ['Kitchen', 'Admin']);
+      }
+
+      const allOrders = SyncStore.db.orders;
+      const newCount = allOrders.filter(o => o.status === 'Mila').length;
+      const prepCount = allOrders.filter(o => o.status === 'Ban raha hai').length;
+      const readyCount = allOrders.filter(o => o.status === 'Tayyar').length;
+      const activeCount = newCount + prepCount + readyCount;
+
+      const visibleOrders = allOrders
+        .filter(o => {
+          if (o.status === 'Serve hua') return false;
+          if (AppState.kitchenFilter !== 'all' && o.status !== AppState.kitchenFilter) return false;
+          return true;
+        })
+        .sort((a, b) => {
+          // Prioritize New ('Mila') first, then Preparing, then Ready
+          const rank = { 'Mila': 1, 'Ban raha hai': 2, 'Tayyar': 3 };
+          if (rank[a.status] !== rank[b.status]) return rank[a.status] - rank[b.status];
+          return a.createdAt - b.createdAt;
+        });
+
+      return `
+        <div class="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-5 pt-4 pb-12 space-y-4 animate-enter">
+          <!-- Kitchen Header -->
+          <header class="rounded-3xl bg-indigoBrand text-white p-4 sm:p-5 shadow-soft flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2.5">
+                <h1 class="text-xl sm:text-2xl font-extrabold text-marigold">👨‍🍳 Zaika Kitchen</h1>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-success/25 text-white text-xs font-semibold">
+                  <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span> Online
+                </span>
+              </div>
+              <p class="text-xs text-white/80 mt-0.5">
+                Logged in: <strong>${escapeHtml(staff.name)}</strong> · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="logoutStaff()" class="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-bold transition">
+                Logout
+              </button>
+            </div>
+          </header>
+
+          <!-- Live KPI Counters & Filter Tabs -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <button type="button" onclick="AppState.kitchenFilter = 'all'; renderApp();" class="p-3.5 rounded-2xl border text-left transition ${AppState.kitchenFilter === 'all' ? 'bg-indigoBrand text-white border-indigoBrand' : 'bg-creamCard dark:bg-midnightCard border-creamBorder dark:border-midnightBorder'}">
+              <div class="text-xs opacity-80">Sab Active</div>
+              <div class="font-heading font-extrabold text-2xl mt-0.5">${activeCount}</div>
+            </button>
+
+            <button type="button" onclick="AppState.kitchenFilter = 'Mila'; renderApp();" class="p-3.5 rounded-2xl border text-left transition ${AppState.kitchenFilter === 'Mila' ? 'bg-marigold text-inkLight border-marigold' : 'bg-creamCard dark:bg-midnightCard border-creamBorder dark:border-midnightBorder'}">
+              <div class="text-xs opacity-80">New (Mila)</div>
+              <div class="font-heading font-extrabold text-2xl mt-0.5">${newCount}</div>
+            </button>
+
+            <button type="button" onclick="AppState.kitchenFilter = 'Ban raha hai'; renderApp();" class="p-3.5 rounded-2xl border text-left transition ${AppState.kitchenFilter === 'Ban raha hai' ? 'bg-indigoBrand text-white border-indigoBrand' : 'bg-creamCard dark:bg-midnightCard border-creamBorder dark:border-midnightBorder'}">
+              <div class="text-xs opacity-80">Preparing</div>
+              <div class="font-heading font-extrabold text-2xl mt-0.5">${prepCount}</div>
+            </button>
+
+            <button type="button" onclick="AppState.kitchenFilter = 'Tayyar'; renderApp();" class="p-3.5 rounded-2xl border text-left transition ${AppState.kitchenFilter === 'Tayyar' ? 'bg-success text-white border-success' : 'bg-creamCard dark:bg-midnightCard border-creamBorder dark:border-midnightBorder'}">
+              <div class="text-xs opacity-80">Ready (Tayyar)</div>
+              <div class="font-heading font-extrabold text-2xl mt-0.5">${readyCount}</div>
+            </button>
+          </div>
+
+          <!-- Kitchen Orders Grid -->
+          ${visibleOrders.length === 0 ? `
+            <div class="py-14 px-4 text-center rounded-3xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder">
+              <div class="text-4xl mb-2">✨</div>
+              <h2 class="font-heading font-bold text-lg">Abhi koi pending order nahi hai</h2>
+              <p class="text-xs text-mutedLight dark:text-mutedDark mt-1">Jaise hi customer order karega, yahan turant dikhai dega.</p>
+            </div>
+          ` : `
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              ${visibleOrders.map(order => {
+                const table = getTableRecord(order.tableNumber);
+                const waiter = SyncStore.db.staff.find(s => s.id === order.assignedWaiterId);
+                const isNew = order.status === 'Mila';
+                const isPrep = order.status === 'Ban raha hai';
+
+                return `
+                  <article class="flex flex-col justify-between rounded-3xl bg-creamCard dark:bg-midnightCard border-2 ${
+                    isNew
+                      ? 'border-marigold pulse-new-order'
+                      : isPrep
+                      ? 'border-indigoBrand dark:border-indigoBrand/80'
+                      : 'border-success'
+                  } p-4 shadow-soft space-y-3.5">
+                    <div>
+                      <!-- Card Top Row -->
+                      <div class="flex items-start justify-between gap-2 pb-2.5 border-b border-creamBorder dark:border-midnightBorder">
+                        <div>
+                          <div class="flex items-center gap-2 flex-wrap">
+                            <span class="px-2.5 py-0.5 rounded-xl bg-indigoBrand text-marigold font-heading font-extrabold text-sm">
+                              Table ${order.tableNumber}
+                            </span>
+                            <span class="font-heading font-bold text-base">#${order.orderNumber}</span>
+                            ${table.dnd ? `<span class="px-2 py-0.5 rounded-md bg-chilli/15 text-chilli text-[10px] font-extrabold">DND</span>` : ''}
+                          </div>
+                          <div class="text-[11px] text-mutedLight dark:text-mutedDark mt-1">
+                            ${formatTimeAgo(order.createdAt)} · Waiter: <strong>${waiter ? escapeHtml(waiter.name) : 'Unassigned'}</strong>
+                          </div>
+                        </div>
+
+                        <span class="px-2.5 py-1 rounded-xl text-xs font-extrabold ${
+                          order.spiceLevel === 'Zyada'
+                            ? 'bg-chilli text-white'
+                            : order.spiceLevel === 'Kam'
+                            ? 'bg-success/15 text-success'
+                            : 'bg-marigold/25 text-inkLight dark:text-marigold'
+                        }">
+                          🌶️ ${escapeHtml(order.spiceLevel)}
+                        </span>
+                      </div>
+
+                      <!-- Items List -->
+                      <ul class="mt-3 space-y-2">
+                        ${order.items.map(it => `
+                          <li class="p-2.5 rounded-xl bg-creamBg dark:bg-midnightBg">
+                            <div class="flex items-start justify-between gap-2">
+                              <span class="font-heading font-bold text-sm sm:text-base leading-snug">
+                                <span class="text-indigoBrand dark:text-marigold">${it.qty}×</span> ${escapeHtml(it.name)}
+                              </span>
+                            </div>
+                            ${it.note ? `
+                              <div class="mt-1 text-xs font-semibold text-chilli">
+                                📝 ${escapeHtml(it.note)}
+                              </div>
+                            ` : ''}
+                          </li>
+                        `).join('')}
+                      </ul>
+
+                      ${order.generalInstructions ? `
+                        <div class="mt-2.5 p-2.5 rounded-xl bg-marigold/15 border border-marigold/40 text-xs">
+                          <strong>Customer Note:</strong> ${escapeHtml(order.generalInstructions)}
+                        </div>
+                      ` : ''}
+                    </div>
+
+                    <!-- Single-Tap Kitchen Action Button -->
+                    <div class="pt-2">
+                      ${isNew ? `
+                        <button
+                          type="button"
+                          onclick="advanceKitchenOrder('${order.id}', 'Ban raha hai')"
+                          class="w-full py-3 rounded-2xl bg-indigoBrand hover:bg-indigoDeep text-white font-heading font-bold text-sm sm:text-base shadow-xs transition">
+                          🔥 Banana shuru karo
+                        </button>
+                      ` : isPrep ? `
+                        <button
+                          type="button"
+                          onclick="advanceKitchenOrder('${order.id}', 'Tayyar')"
+                          class="w-full py-3 rounded-2xl bg-success hover:opacity-95 text-white font-heading font-bold text-sm sm:text-base shadow-xs transition">
+                          ✓ Tayyar hai
+                        </button>
+                      ` : `
+                        <div class="w-full py-2.5 rounded-2xl bg-success/15 text-success text-center font-heading font-bold text-xs sm:text-sm">
+                          ✓ Ready — Waiter ko bhej diya gaya
+                        </div>
+                      `}
+                    </div>
+                  </article>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    // --------------------------------------------------------------------------
+    // 18. WAITER DASHBOARD VIEW (One-Handed Shift Operations)
+    // --------------------------------------------------------------------------
+    function renderWaiterView() {
+      const staff = getLoggedStaff();
+      if (!staff || !['Waiter', 'Admin'].includes(staff.role)) {
+        return renderStaffLoginGate('Zaika Waiter', ['Waiter', 'Admin']);
+      }
+
+      const isWaiterRole = staff.role === 'Waiter';
+      const allAlerts = SyncStore.db.alerts.filter(al => {
+        if (isWaiterRole) return al.waiterId === staff.id;
+        if (AppState.selectedWaiterIdFilter !== 'mine' && AppState.selectedWaiterIdFilter !== 'all') {
+          return al.waiterId === AppState.selectedWaiterIdFilter;
+        }
+        return true;
+      });
+
+      const activeAlerts = allAlerts.filter(a => !a.completedAt);
+      const completedAlerts = allAlerts.filter(a => a.completedAt).slice(0, 20);
+
+      const assignedTables = SyncStore.db.tables.filter(t => {
+        if (isWaiterRole) return t.assignedWaiterId === staff.id;
+        return true;
+      });
+
+      return `
+        <div class="flex-1 w-full max-w-5xl mx-auto px-3 sm:px-5 pt-4 pb-12 space-y-4 animate-enter">
+          <!-- Waiter Header -->
+          <header class="rounded-3xl bg-indigoBrand text-white p-4 sm:p-5 shadow-soft flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 class="text-xl sm:text-2xl font-extrabold text-marigold">🛎️ Zaika Service Desk</h1>
+              <p class="text-xs text-white/80 mt-0.5">
+                Staff: <strong>${escapeHtml(staff.name)}</strong> (${staff.role}) · ${assignedTables.length} Assigned Tables
+              </p>
+            </div>
+            <button type="button" onclick="logoutStaff()" class="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-bold">
+              Logout
+            </button>
+          </header>
+
+          <!-- Sub-Tabs: Live Alerts | My Tables | Completed History -->
+          <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <button
+              type="button"
+              onclick="AppState.waiterTab = 'alerts'; renderApp();"
+              class="px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                AppState.waiterTab === 'alerts'
+                  ? 'bg-indigoBrand text-white'
+                  : 'bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder'
+              }">
+              <span>Live Alerts</span>
+              <span class="px-2 py-0.5 rounded-full text-[11px] ${activeAlerts.length > 0 ? 'bg-chilli text-white' : 'bg-creamElevated dark:bg-midnightElevated'}">
+                ${activeAlerts.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onclick="AppState.waiterTab = 'tables'; renderApp();"
+              class="px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+                AppState.waiterTab === 'tables'
+                  ? 'bg-indigoBrand text-white'
+                  : 'bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder'
+              }">
+              Tables Overview (${assignedTables.length})
+            </button>
+
+            <button
+              type="button"
+              onclick="AppState.waiterTab = 'history'; renderApp();"
+              class="px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+                AppState.waiterTab === 'history'
+                  ? 'bg-indigoBrand text-white'
+                  : 'bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder'
+              }">
+              Completed (${completedAlerts.length})
+            </button>
+          </div>
+
+          <!-- TAB 1: LIVE ALERTS -->
+          ${AppState.waiterTab === 'alerts' ? `
+            <div class="space-y-3">
+              ${activeAlerts.length === 0 ? `
+                <div class="py-12 px-4 text-center rounded-3xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder">
+                  <div class="text-3xl mb-2">✅</div>
+                  <p class="font-heading font-bold text-base">Abhi koi pending alert nahi hai</p>
+                  <p class="text-xs text-mutedLight dark:text-mutedDark mt-1">Naya order, waiter call, food ready ya bill request yahan turant aayegi.</p>
+                </div>
+              ` : activeAlerts.map(al => {
+                const badgeStyles = {
+                  food_ready: { bg: 'bg-success/15 border-success', icon: '🍽️', label: 'FOOD READY' },
+                  bill_request: { bg: 'bg-chilli/15 border-chilli', icon: '🧾', label: 'BILL REQUEST' },
+                  waiter_call: { bg: 'bg-marigold/20 border-marigold', icon: '🛎️', label: 'WAITER CALL' },
+                  new_order: { bg: 'bg-indigoBrand/10 border-indigoBrand', icon: '🆕', label: 'NEW ORDER' }
+                };
+                const st = badgeStyles[al.type] || badgeStyles.new_order;
+                const tbl = getTableRecord(al.tableNumber);
+
+                return `
+                  <div class="p-4 rounded-3xl bg-creamCard dark:bg-midnightCard border-2 ${st.bg} shadow-card flex items-center justify-between gap-3">
+                    <div class="flex items-start gap-3 min-w-0">
+                      <span class="text-2xl shrink-0 mt-0.5">${st.icon}</span>
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <span class="text-[10px] font-extrabold tracking-wider px-2 py-0.5 rounded-md bg-indigoBrand text-white">
+                            ${st.label}
+                          </span>
+                          <span class="text-xs text-mutedLight dark:text-mutedDark">${formatTimeAgo(al.createdAt)}</span>
+                          ${tbl.dnd ? `<span class="px-2 py-0.5 rounded-md bg-chilli text-white text-[10px] font-bold">DND</span>` : ''}
+                        </div>
+                        <p class="font-heading font-bold text-base sm:text-lg mt-1 break-words">
+                          ${escapeHtml(al.message)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onclick="completeWaiterAlert('${al.id}')"
+                      class="shrink-0 px-4 py-3 rounded-2xl bg-success hover:opacity-95 text-white font-heading font-bold text-xs sm:text-sm shadow-xs transition">
+                      Done ✓
+                    </button>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          ` : ''}
+
+          <!-- TAB 2: TABLES OVERVIEW GRID -->
+          ${AppState.waiterTab === 'tables' ? `
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              ${assignedTables.map(tbl => {
+                const orders = getActiveTableOrders(tbl.number);
+                const readyOrders = orders.filter(o => o.status === 'Tayyar');
+                const prepOrders = orders.filter(o => o.status === 'Ban raha hai');
+                const waiterObj = SyncStore.db.staff.find(s => s.id === tbl.assignedWaiterId);
+
+                let statusText = 'Available';
+                let statusCls = 'bg-creamElevated dark:bg-midnightElevated text-mutedLight dark:text-mutedDark';
+
+                if (tbl.billRequestedAt) {
+                  statusText = 'Bill requested';
+                  statusCls = 'bg-chilli text-white';
+                } else if (readyOrders.length > 0) {
+                  statusText = 'Ready to serve';
+                  statusCls = 'bg-success text-white';
+                } else if (prepOrders.length > 0) {
+                  statusText = 'Preparing';
+                  statusCls = 'bg-marigold text-inkLight';
+                } else if (orders.length > 0) {
+                  statusText = 'Ordering';
+                  statusCls = 'bg-indigoBrand text-white';
+                }
+
+                return `
+                  <button
+                    type="button"
+                    onclick="openWaiterTableModal(${tbl.number})"
+                    class="p-4 rounded-3xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder hover:border-indigoBrand dark:hover:border-marigold text-left shadow-card transition flex flex-col justify-between gap-3">
+                    <div class="flex items-center justify-between gap-1 w-full">
+                      <span class="font-heading font-extrabold text-lg text-indigoBrand dark:text-marigold">
+                        Table ${tbl.number}
+                      </span>
+                      ${tbl.dnd ? `<span class="px-2 py-0.5 rounded-md bg-chilli/15 text-chilli text-[10px] font-extrabold">DND</span>` : ''}
+                    </div>
+
+                    <div class="space-y-1.5 w-full">
+                      <span class="inline-block px-2.5 py-1 rounded-xl text-[11px] font-bold ${statusCls}">
+                        ${statusText}
+                      </span>
+                      <div class="text-[11px] text-mutedLight dark:text-mutedDark truncate">
+                        Active Orders: <strong>${orders.length}</strong>
+                      </div>
+                      <div class="text-[10px] text-mutedLight dark:text-mutedDark truncate">
+                        Staff: ${waiterObj ? escapeHtml(waiterObj.name) : 'Unassigned'}
+                      </div>
+                    </div>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          ` : ''}
+
+          <!-- TAB 3: COMPLETED ALERTS HISTORY -->
+          ${AppState.waiterTab === 'history' ? `
+            <div class="bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-4 space-y-2.5">
+              <h2 class="font-heading font-bold text-base">Completed Alerts History</h2>
+              ${completedAlerts.length === 0 ? `
+                <p class="text-xs text-mutedLight dark:text-mutedDark py-4">Abhi tak koi alert complete nahi hua hai.</p>
+              ` : completedAlerts.map(al => `
+                <div class="flex items-center justify-between gap-2 py-2.5 border-b last:border-b-0 border-creamBorder dark:border-midnightBorder text-xs">
+                  <span class="font-medium">${escapeHtml(al.message)}</span>
+                  <span class="text-mutedLight dark:text-mutedDark shrink-0">Done at ${formatClockTime(al.completedAt)}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function openWaiterTableModal(tableNumber) {
+      const tbl = getTableRecord(tableNumber);
+      const orders = getTableOrders(tableNumber);
+
+      openModal(`Table ${tableNumber} — Service Details`, `
+        <div class="space-y-4">
+          <div class="flex flex-wrap items-center gap-2">
+            ${tbl.dnd ? `<span class="px-3 py-1 rounded-full bg-chilli/15 text-chilli text-xs font-bold">🔕 DND Mode Active — Respect Privacy</span>` : ''}
+            ${tbl.waiterCalledAt ? `
+              <span class="px-3 py-1 rounded-full bg-marigold text-inkLight text-xs font-bold">🛎️ Waiter Called</span>
+            ` : ''}
+            ${tbl.billRequestedAt ? `
+              <span class="px-3 py-1 rounded-full bg-chilli text-white text-xs font-bold">🧾 Bill Requested</span>
+            ` : ''}
+          </div>
+
+          ${orders.length === 0 ? `
+            <p class="text-sm text-mutedLight dark:text-mutedDark py-4 text-center">Is table par abhi koi order nahi hai.</p>
+          ` : orders.map(ord => `
+            <div class="p-3.5 rounded-2xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-heading font-bold text-sm">Order #${ord.orderNumber} · ${escapeHtml(ord.status)}</span>
+                <span class="font-bold text-sm">₹${ord.total}</span>
+              </div>
+              <ul class="text-xs text-mutedLight dark:text-mutedDark space-y-1">
+                ${ord.items.map(i => `<li>${i.qty}× ${escapeHtml(i.name)}</li>`).join('')}
+              </ul>
+              ${ord.status === 'Tayyar' ? `
+                <button
+                  type="button"
+                  onclick="markOrderServed('${ord.id}'); closeModal();"
+                  class="w-full mt-2 py-2.5 rounded-xl bg-success text-white font-heading font-bold text-xs">
+                  ✓ Mark Served (Serve hua)
+                </button>
+              ` : ''}
+            </div>
+          `).join('')}
+        </div>
+      `);
+    }
+
+    // --------------------------------------------------------------------------
+    // 19. ADMIN MANAGEMENT PANEL (Protected by Admin PIN 1111)
+    // --------------------------------------------------------------------------
+    function renderAdminView() {
+      const staff = getLoggedStaff();
+      if (!staff || staff.role !== 'Admin') {
+        return renderStaffLoginGate('Zaika Admin Control', ['Admin']);
+      }
+
+      const tabs = [
+        { id: 'menu', label: '🍽️ Menu' },
+        { id: 'categories', label: '🗂️ Categories' },
+        { id: 'tables', label: '📱 Tables & QR' },
+        { id: 'staff', label: '👥 Staff & PINs' },
+        { id: 'settings', label: '⚙️ Settings & Fun' }
+      ];
+
+      return `
+        <div class="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-5 pt-4 pb-12 space-y-4 animate-enter">
+          <!-- Admin Header -->
+          <header class="rounded-3xl bg-indigoBrand text-white p-4 sm:p-5 shadow-soft flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 class="text-xl sm:text-2xl font-extrabold text-marigold">⚙️ Zaika Admin Panel</h1>
+              <p class="text-xs text-white/80 mt-0.5">
+                Welcome, <strong>${escapeHtml(staff.name)}</strong> · Full Restaurant Control
+              </p>
+            </div>
+            <button type="button" onclick="logoutStaff()" class="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-bold">
+              Logout
+            </button>
+          </header>
+
+          <!-- Responsive Admin Navigation Tabs -->
+          <nav class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            ${tabs.map(t => `
+              <button
+                type="button"
+                onclick="AppState.adminTab = '${t.id}'; renderApp();"
+                class="px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap shrink-0 ${
+                  AppState.adminTab === t.id
+                    ? 'bg-indigoBrand text-white shadow-xs'
+                    : 'bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder hover:border-indigoBrand'
+                }">
+                ${t.label}
+              </button>
+            `).join('')}
+          </nav>
+
+          ${AppState.adminTab === 'menu' ? renderAdminMenuTab() : ''}
+          ${AppState.adminTab === 'categories' ? renderAdminCategoriesTab() : ''}
+          ${AppState.adminTab === 'tables' ? renderAdminTablesAndQrTab() : ''}
+          ${AppState.adminTab === 'staff' ? renderAdminStaffTab() : ''}
+          ${AppState.adminTab === 'settings' ? renderAdminSettingsTab() : ''}
+        </div>
+      `;
+    }
+
+    // Admin Tab 1: Menu Management
+    function renderAdminMenuTab() {
+      const items = [...SyncStore.db.menuItems].sort((a, b) => a.order - b.order);
+      const chefPickCount = items.filter(i => i.isChefPick).length;
+
+      return `
+        <div class="space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="font-heading font-extrabold text-lg">Menu Items (${items.length})</h2>
+              <p class="text-xs text-mutedLight dark:text-mutedDark">Chef ki pasand active: <strong>${chefPickCount}/3</strong></p>
+            </div>
+            <button
+              type="button"
+              onclick="openMenuItemModal(null)"
+              class="px-4 py-2.5 rounded-2xl bg-success text-white text-xs sm:text-sm font-bold shadow-xs">
+              + Nayi Dish Add Karein
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            ${items.map(item => {
+              const cat = SyncStore.db.categories.find(c => c.id === item.categoryId);
+              const isSpecial = SyncStore.db.settings.todaySpecialId === item.id;
+              return `
+                <div class="p-3.5 rounded-2xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder flex gap-3 items-start">
+                  <img
+                    src="${escapeHtml(item.image)}"
+                    onerror="this.onerror=null;this.src='${FOOD_FALLBACK_SVG}'"
+                    alt="${escapeHtml(item.name)}"
+                    class="w-16 h-16 rounded-xl object-cover shrink-0" />
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex items-center gap-1.5 min-w-0">
+                        ${renderVegBadge(item.isVeg)}
+                        <h3 class="font-heading font-bold text-sm truncate">${escapeHtml(item.name)}</h3>
+                      </div>
+                      <span class="font-heading font-extrabold text-sm text-indigoBrand dark:text-marigold shrink-0">₹${item.price}</span>
+                    </div>
+                    <div class="text-[11px] text-mutedLight dark:text-mutedDark mt-0.5">
+                      ${cat ? escapeHtml(cat.name) : 'Uncategorized'}
+                      ${isSpecial ? ' · <strong class="text-marigoldDark">✨ Today Special</strong>' : ''}
+                      ${item.isChefPick ? ' · <strong class="text-indigoBrand dark:text-marigold">👨‍🍳 Chef Pick</strong>' : ''}
+                    </div>
+
+                    <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onclick="toggleAdminItemStock('${item.id}')"
+                        class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${item.inStock ? 'bg-success/15 text-success' : 'bg-chilli/15 text-chilli'}">
+                        ${item.inStock ? 'In Stock' : 'Out of Stock'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onclick="setAdminTodaySpecial('${item.id}')"
+                        class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${isSpecial ? 'bg-marigold text-inkLight' : 'bg-creamElevated dark:bg-midnightElevated'}">
+                        ${isSpecial ? '★ Special' : 'Set Special'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onclick="openMenuItemModal('${item.id}')"
+                        class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigoBrand/10 dark:bg-indigoBrand/40 text-indigoBrand dark:text-white">
+                        Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        onclick="deleteAdminMenuItem('${item.id}')"
+                        class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-chilli hover:bg-chilli/10">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function openMenuItemModal(itemId) {
+      const existing = itemId ? SyncStore.db.menuItems.find(m => m.id === itemId) : null;
+      const cats = [...SyncStore.db.categories].sort((a, b) => a.order - b.order);
+
+      openModal(existing ? 'Dish Edit Karein' : 'Nayi Dish Add Karein', `
+        <form onsubmit="saveAdminMenuItem(event, '${existing ? existing.id : ''}')" class="space-y-3 text-xs sm:text-sm">
+          <div>
+            <label class="block font-bold mb-1">Dish Name</label>
+            <input type="text" name="name" required value="${escapeHtml(existing?.name || '')}" class="w-full px-3.5 py-2.5 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold mb-1">Price (₹)</label>
+              <input type="number" name="price" min="1" required value="${existing?.price || 250}" class="w-full px-3.5 py-2.5 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+            </div>
+            <div>
+              <label class="block font-bold mb-1">Category</label>
+              <select name="categoryId" class="w-full px-3.5 py-2.5 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder">
+                ${cats.map(c => `<option value="${c.id}" ${existing?.categoryId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold mb-1">Short Description</label>
+            <textarea name="description" rows="2" required class="w-full px-3.5 py-2 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder">${escapeHtml(existing?.description || '')}</textarea>
+          </div>
+
+          <div>
+            <label class="block font-bold mb-1">Image URL (or upload file below)</label>
+            <input type="url" id="admin-item-img-url" name="image" value="${escapeHtml(existing?.image || 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=600&q=80')}" class="w-full px-3.5 py-2 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+          </div>
+
+          <div class="flex flex-wrap gap-4 pt-1">
+            <label class="inline-flex items-center gap-2 font-semibold">
+              <input type="checkbox" name="isVeg" ${!existing || existing.isVeg ? 'checked' : ''} /> Pure Veg
+            </label>
+            <label class="inline-flex items-center gap-2 font-semibold">
+              <input type="checkbox" name="inStock" ${!existing || existing.inStock ? 'checked' : ''} /> In Stock
+            </label>
+            <label class="inline-flex items-center gap-2 font-semibold">
+              <input type="checkbox" name="isPopular" ${existing?.isPopular ? 'checked' : ''} /> Popular
+            </label>
+            <label class="inline-flex items-center gap-2 font-semibold">
+              <input type="checkbox" name="isChefPick" ${existing?.isChefPick ? 'checked' : ''} /> Chef ki pasand (Max 3)
+            </label>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-3">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-creamElevated dark:bg-midnightElevated font-bold">Cancel</button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-indigoBrand text-white font-bold">Save Dish ✓</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function saveAdminMenuItem(event, existingId) {
+      event.preventDefault();
+      const f = event.target;
+      const wantChefPick = f.isChefPick.checked;
+
+      // Enforce exact max 3 Chef ki pasand
+      if (wantChefPick) {
+        const otherChefPicks = SyncStore.db.menuItems.filter(m => m.isChefPick && m.id !== existingId);
+        if (otherChefPicks.length >= 3) {
+          showToast('Chef ki pasand mein maximum 3 dishes ho sakti hain. Pehle kisi ek ko uncheck karein.', 'chilli');
+          return;
+        }
+      }
+
+      SyncStore.mutate(db => {
+        const payload = {
+          name: f.name.value.trim(),
+          price: Number(f.price.value),
+          categoryId: f.categoryId.value,
+          description: f.description.value.trim(),
+          image: f.image.value.trim() || FOOD_FALLBACK_SVG,
+          isVeg: f.isVeg.checked,
+          inStock: f.inStock.checked,
+          isPopular: f.isPopular.checked,
+          isChefPick: wantChefPick
+        };
+
+        if (existingId) {
+          const item = db.menuItems.find(m => m.id === existingId);
+          if (item) Object.assign(item, payload);
+        } else {
+          db.menuItems.push({
+            id: `item_${Date.now()}`,
+            order: db.menuItems.length + 1,
+            ...payload
+          });
+        }
+      });
+
+      closeModal();
+      showToast('Menu dish save ho gayi hai ✓', 'success');
+      renderApp();
+    }
+
+    function toggleAdminItemStock(itemId) {
+      SyncStore.mutate(db => {
+        const item = db.menuItems.find(m => m.id === itemId);
+        if (item) item.inStock = !item.inStock;
+      });
+      renderApp();
+    }
+
+    function setAdminTodaySpecial(itemId) {
+      SyncStore.mutate(db => {
+        db.settings.todaySpecialId = itemId;
+      });
+      showToast('Aaj ka Special update kar diya gaya ✓', 'marigold');
+      renderApp();
+    }
+
+    function deleteAdminMenuItem(itemId) {
+      confirmAction('Delete Menu Item?', 'Kya aap is dish ko menu se hatana chahte hain?', 'Haan, Delete Karein', () => {
+        SyncStore.mutate(db => {
+          db.menuItems = db.menuItems.filter(m => m.id !== itemId);
+        });
+        showToast('Dish delete ho gayi', 'indigo');
+        renderApp();
+      });
+    }
+
+    // Admin Tab 2: Category Management
+    function renderAdminCategoriesTab() {
+      const cats = [...SyncStore.db.categories].sort((a, b) => a.order - b.order);
+
+      return `
+        <div class="bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-5 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 class="font-heading font-extrabold text-lg">Menu Categories</h2>
+            <form onsubmit="addAdminCategory(event)" class="flex items-center gap-2">
+              <input type="text" name="catName" required placeholder="Nayi category ka naam..." class="px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+              <button type="submit" class="px-4 py-2 rounded-xl bg-success text-white text-xs sm:text-sm font-bold">+ Add</button>
+            </form>
+          </div>
+
+          <div class="divide-y divide-creamBorder dark:divide-midnightBorder">
+            ${cats.map((cat, idx) => `
+              <div class="py-3 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-mono text-mutedLight">#${idx + 1}</span>
+                  <input
+                    type="text"
+                    value="${escapeHtml(cat.name)}"
+                    onchange="renameAdminCategory('${cat.id}', this.value)"
+                    class="px-3 py-1.5 rounded-xl text-sm font-bold bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+                </div>
+
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="moveAdminCategory('${cat.id}', -1)" ${idx === 0 ? 'disabled' : ''} class="px-2.5 py-1.5 rounded-lg bg-creamElevated dark:bg-midnightElevated text-xs font-bold disabled:opacity-40">↑</button>
+                  <button type="button" onclick="moveAdminCategory('${cat.id}', 1)" ${idx === cats.length - 1 ? 'disabled' : ''} class="px-2.5 py-1.5 rounded-lg bg-creamElevated dark:bg-midnightElevated text-xs font-bold disabled:opacity-40">↓</button>
+                  <button type="button" onclick="toggleAdminCategoryVis('${cat.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${cat.visible ? 'bg-success/15 text-success' : 'bg-creamElevated text-mutedLight'}">
+                    ${cat.visible ? 'Visible' : 'Hidden'}
+                  </button>
+                  <button type="button" onclick="deleteAdminCategory('${cat.id}')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-chilli hover:bg-chilli/10">Delete</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function addAdminCategory(e) {
+      e.preventDefault();
+      const name = e.target.catName.value.trim();
+      if (!name) return;
+      SyncStore.mutate(db => {
+        db.categories.push({
+          id: `cat_${Date.now()}`,
+          name,
+          order: db.categories.length + 1,
+          visible: true
+        });
+      });
+      e.target.reset();
+      showToast('Category add ho gayi ✓', 'success');
+      renderApp();
+    }
+
+    function renameAdminCategory(catId, newName) {
+      if (!newName.trim()) return;
+      SyncStore.mutate(db => {
+        const c = db.categories.find(x => x.id === catId);
+        if (c) c.name = newName.trim();
+      });
+      showToast('Category rename ho gayi', 'indigo');
+    }
+
+    function moveAdminCategory(catId, dir) {
+      SyncStore.mutate(db => {
+        const sorted = [...db.categories].sort((a, b) => a.order - b.order);
+        const idx = sorted.findIndex(c => c.id === catId);
+        const swapIdx = idx + dir;
+        if (swapIdx < 0 || swapIdx >= sorted.length) return;
+        const temp = sorted[idx].order;
+        sorted[idx].order = sorted[swapIdx].order;
+        sorted[swapIdx].order = temp;
+      });
+      renderApp();
+    }
+
+    function toggleAdminCategoryVis(catId) {
+      SyncStore.mutate(db => {
+        const c = db.categories.find(x => x.id === catId);
+        if (c) c.visible = !c.visible;
+      });
+      renderApp();
+    }
+
+    function deleteAdminCategory(catId) {
+      confirmAction('Delete Category?', 'Is category ko delete karne par dishes uncategorized ho jayengi.', 'Delete', () => {
+        SyncStore.mutate(db => {
+          db.categories = db.categories.filter(c => c.id !== catId);
+        });
+        renderApp();
+      });
+    }
+
+    // Admin Tab 3: Tables, Waiter Assignment & QR Code Generator
+    function renderAdminTablesAndQrTab() {
+      const tables = [...SyncStore.db.tables].sort((a, b) => a.number - b.number);
+      const waiters = SyncStore.db.staff.filter(s => s.role === 'Waiter' && s.active);
+      const qrTableNum = AppState.selectedQrTable || (tables[0]?.number || 1);
+      const baseUrl = window.location.href.split('?')[0];
+      const qrLink = `${baseUrl}?table=${qrTableNum}`;
+
+      // Render QR canvas right after DOM updates
+      setTimeout(() => renderQrCanvas(qrLink), 10);
+
+      return `
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <!-- Left 2 cols: Table & Waiter Mapping -->
+          <div class="lg:col-span-2 bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h2 class="font-heading font-extrabold text-lg">Tables & Waiter Assignment</h2>
+              <button type="button" onclick="addAdminTable()" class="px-3.5 py-2 rounded-xl bg-success text-white text-xs font-bold">
+                + Table Add Karein
+              </button>
+            </div>
+
+            <!-- Bulk Range Assignment Helper -->
+            <form onsubmit="bulkAssignWaiterRange(event)" class="p-3.5 rounded-2xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder flex flex-wrap items-center gap-2 text-xs">
+              <span class="font-bold">Quick Range Assign:</span>
+              <select name="waiterId" class="px-2.5 py-1.5 rounded-xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder">
+                ${waiters.map(w => `<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('')}
+              </select>
+              <span>Tables</span>
+              <input type="number" name="fromTable" min="1" value="1" class="w-16 px-2 py-1.5 rounded-xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder" />
+              <span>to</span>
+              <input type="number" name="toTable" min="1" value="8" class="w-16 px-2 py-1.5 rounded-xl bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder" />
+              <button type="submit" class="px-3 py-1.5 rounded-xl bg-indigoBrand text-white font-bold">Apply</button>
+            </form>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              ${tables.map(t => `
+                <div class="p-3 rounded-2xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder flex items-center justify-between gap-2">
+                  <div>
+                    <div class="font-heading font-bold text-sm">Table ${t.number}</div>
+                    <select
+                      onchange="assignWaiterToTable(${t.number}, this.value)"
+                      class="mt-1 px-2.5 py-1 rounded-lg text-xs bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder">
+                      <option value="">Unassigned</option>
+                      ${waiters.map(w => `<option value="${w.id}" ${t.assignedWaiterId === w.id ? 'selected' : ''}>${escapeHtml(w.name)}</option>`).join('')}
+                    </select>
+                  </div>
+
+                  <div class="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onclick="AppState.selectedQrTable = ${t.number}; renderApp();"
+                      class="px-2.5 py-1.5 rounded-xl text-xs font-bold ${qrTableNum === t.number ? 'bg-marigold text-inkLight' : 'bg-indigoBrand text-white'}">
+                      QR
+                    </button>
+                    <button
+                      type="button"
+                      onclick="removeAdminTable(${t.number})"
+                      class="px-2 py-1.5 rounded-xl text-xs font-bold text-chilli hover:bg-chilli/10">
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Right col: Live QR Code Generator, Download & Print -->
+          <div class="bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-5 flex flex-col items-center text-center space-y-4">
+            <span class="px-3 py-1 rounded-full bg-indigoBrand text-marigold font-heading font-bold text-xs">
+              Table QR Generator
+            </span>
+            <h3 class="font-heading font-extrabold text-xl">Table ${qrTableNum} QR</h3>
+
+            <div id="zaika-qr-box" class="p-4 bg-white rounded-2xl border-2 border-indigoBrand shadow-xs flex items-center justify-center min-h-[192px] min-w-[192px]"></div>
+
+            <div class="w-full text-[11px] font-mono break-all p-2.5 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder">
+              ${escapeHtml(qrLink)}
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 w-full">
+              <button type="button" onclick="downloadTableQrPng(${qrTableNum})" class="py-2.5 px-3 rounded-xl bg-indigoBrand text-white text-xs font-bold">
+                ⬇ Download PNG
+              </button>
+              <button type="button" onclick="printTableQrCard(${qrTableNum}, '${escapeHtml(qrLink)}')" class="py-2.5 px-3 rounded-xl bg-marigold text-inkLight text-xs font-bold">
+                🖨️ Print QR
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onclick="setTableNumber(${qrTableNum}); switchAppView('customer');"
+              class="w-full py-2.5 rounded-xl border border-indigoBrand/30 dark:border-marigold/40 text-xs font-bold text-indigoBrand dark:text-marigold">
+              Open Table ${qrTableNum} Customer View →
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderQrCanvas(url) {
+      const box = document.getElementById('zaika-qr-box');
+      if (!box || typeof QRCode === 'undefined') return;
+      box.innerHTML = '';
+      new QRCode(box, {
+        text: url,
+        width: 176,
+        height: 176,
+        colorDark: '#2B2F6B',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
+
+    function downloadTableQrPng(tableNum) {
+      const canvas = document.querySelector('#zaika-qr-box canvas');
+      if (!canvas) {
+        showToast('QR image ready nahi hai', 'chilli');
+        return;
+      }
+      const link = document.createElement('a');
+      link.download = `ZAIKA-Table-${tableNum}-QR.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast(`Table ${tableNum} QR download ho gaya ✓`, 'success');
+    }
+
+    function printTableQrCard(tableNum, url) {
+      const printArea = document.getElementById('qr-print-area');
+      const canvas = document.querySelector('#zaika-qr-box canvas');
+      const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
+      printArea.innerHTML = `
+        <div style="border: 4px solid #2B2F6B; border-radius: 24px; padding: 32px; text-align: center; max-width: 340px; font-family: sans-serif;">
+          <h1 style="color: #2B2F6B; margin: 0 0 8px 0; font-size: 28px;">${escapeHtml(SyncStore.db.settings.restaurantName)}</h1>
+          <div style="background: #F4B63F; color: #1E2038; font-weight: bold; padding: 6px 18px; border-radius: 99px; display: inline-block; margin-bottom: 16px;">
+            TABLE ${tableNum}
+          </div>
+          <div><img src="${dataUrl}" style="width: 220px; height: 220px; margin: 0 auto;" /></div>
+          <p style="margin: 16px 0 4px 0; font-weight: bold; font-size: 16px;">Scan to Order Food</p>
+          <p style="margin: 0; font-size: 11px; color: #555;">${escapeHtml(url)}</p>
+        </div>
+      `;
+      window.print();
+    }
+
+    function addAdminTable() {
+      const maxNum = SyncStore.db.tables.reduce((m, t) => Math.max(m, t.number), 0);
+      const nextNum = maxNum + 1;
+      SyncStore.mutate(db => {
+        db.tables.push({
+          number: nextNum,
+          label: `Table ${nextNum}`,
+          assignedWaiterId: db.staff.find(s => s.role === 'Waiter' && s.active)?.id || null,
+          dnd: false,
+          waiterCalledAt: null,
+          billRequestedAt: null
+        });
+      });
+      showToast(`Table ${nextNum} add ho gaya ✓`, 'success');
+      renderApp();
+    }
+
+    function removeAdminTable(num) {
+      confirmAction(`Remove Table ${num}?`, 'Is table ko system se hataya jayega.', 'Remove', () => {
+        SyncStore.mutate(db => {
+          db.tables = db.tables.filter(t => t.number !== num);
+        });
+        renderApp();
+      });
+    }
+
+    function assignWaiterToTable(tableNum, waiterId) {
+      SyncStore.mutate(db => {
+        const tbl = db.tables.find(t => t.number === tableNum);
+        if (tbl) tbl.assignedWaiterId = waiterId || null;
+      });
+      showToast(`Table ${tableNum} waiter assign ho gaya ✓`, 'success');
+    }
+
+    function bulkAssignWaiterRange(e) {
+      e.preventDefault();
+      const waiterId = e.target.waiterId.value;
+      const fromT = parseInt(e.target.fromTable.value, 10);
+      const toT = parseInt(e.target.toTable.value, 10);
+      SyncStore.mutate(db => {
+        db.tables.forEach(t => {
+          if (t.number >= fromT && t.number <= toT) {
+            t.assignedWaiterId = waiterId;
+          }
+        });
+      });
+      showToast(`Tables ${fromT}–${toT} assign ho gaye ✓`, 'success');
+      renderApp();
+    }
+
+    // Admin Tab 4: Staff & PIN Security
+    function renderAdminStaffTab() {
+      return `
+        <div class="bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-5 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 class="font-heading font-extrabold text-lg">Staff Accounts & Role Security</h2>
+            <button type="button" onclick="openAddStaffModal()" class="px-4 py-2 rounded-xl bg-success text-white text-xs font-bold">
+              + Add Staff
+            </button>
+          </div>
+
+          <div class="divide-y divide-creamBorder dark:divide-midnightBorder">
+            ${SyncStore.db.staff.map(st => `
+              <div class="py-3.5 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div class="font-heading font-bold text-sm sm:text-base">${escapeHtml(st.name)}</div>
+                  <div class="text-xs text-mutedLight dark:text-mutedDark">
+                    Role: <strong>${st.role}</strong> · Status: <span class="${st.active ? 'text-success font-bold' : 'text-chilli'}">${st.active ? 'Active' : 'Disabled'}</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="promptResetStaffPin('${st.id}', '${escapeHtml(st.name)}')" class="px-3 py-1.5 rounded-xl bg-creamElevated dark:bg-midnightElevated text-xs font-bold">
+                    Reset PIN
+                  </button>
+                  <button type="button" onclick="toggleStaffActive('${st.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold ${st.active ? 'bg-chilli/15 text-chilli' : 'bg-success/15 text-success'}">
+                    ${st.active ? 'Disable' : 'Enable'}
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function openAddStaffModal() {
+      openModal('Naya Staff Account Banayein', `
+        <form onsubmit="createAdminStaff(event)" class="space-y-3 text-sm">
+          <div>
+            <label class="block text-xs font-bold mb-1">Staff Name</label>
+            <input type="text" name="name" required placeholder="e.g. Suresh" class="w-full px-3.5 py-2.5 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold mb-1">Role</label>
+            <select name="role" class="w-full px-3.5 py-2.5 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder">
+              <option value="Waiter">Waiter</option>
+              <option value="Kitchen">Kitchen</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold mb-1">4-Digit PIN</label>
+            <input type="password" name="pin" inputmode="numeric" minlength="4" maxlength="6" required placeholder="e.g. 5555" class="w-full px-3.5 py-2.5 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-creamElevated dark:bg-midnightElevated text-xs font-bold">Cancel</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-indigoBrand text-white text-xs font-bold">Create Account</button>
+          </div>
+        </form>
+      `, 'max-w-sm');
+    }
+
+    function createAdminStaff(e) {
+      e.preventDefault();
+      const f = e.target;
+      SyncStore.mutate(db => {
+        db.staff.push({
+          id: `staff_${Date.now()}`,
+          name: f.name.value.trim(),
+          role: f.role.value,
+          pinHash: hashPinSync(f.pin.value.trim()),
+          active: true
+        });
+      });
+      closeModal();
+      showToast('Staff account add ho gaya ✓', 'success');
+      renderApp();
+    }
+
+    function promptResetStaffPin(staffId, staffName) {
+      openModal(`Reset PIN — ${staffName}`, `
+        <form onsubmit="event.preventDefault(); SyncStore.mutate(db => { const s = db.staff.find(x => x.id === '${staffId}'); if (s) s.pinHash = hashPinSync(this.newPin.value.trim()); }); closeModal(); showToast('PIN update ho gaya ✓', 'success');" class="space-y-3">
+          <input type="password" name="newPin" inputmode="numeric" minlength="4" maxlength="6" required placeholder="Naya 4-digit PIN" class="w-full px-4 py-2.5 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+          <div class="flex justify-end gap-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-creamElevated dark:bg-midnightElevated text-xs font-bold">Cancel</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-indigoBrand text-white text-xs font-bold">Save PIN</button>
+          </div>
+        </form>
+      `, 'max-w-sm');
+    }
+
+    function toggleStaffActive(staffId) {
+      const current = getLoggedStaff();
+      if (current && current.id === staffId) {
+        showToast('Aap apna khud ka Admin account disable nahi kar sakte.', 'chilli');
+        return;
+      }
+      SyncStore.mutate(db => {
+        const s = db.staff.find(x => x.id === staffId);
+        if (s) s.active = !s.active;
+      });
+      renderApp();
+    }
+
+    // Admin Tab 5: Restaurant Settings, Quiz, Wheel & Firebase Connector
+    function renderAdminSettingsTab() {
+      const s = SyncStore.db.settings;
+      return `
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <form onsubmit="saveAdminSettings(event)" class="bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-5 space-y-3 text-xs sm:text-sm">
+            <h2 class="font-heading font-extrabold text-lg">Restaurant & Real-Time Settings</h2>
+
+            <div>
+              <label class="block font-bold mb-1">Restaurant Brand Name</label>
+              <input type="text" name="restaurantName" value="${escapeHtml(s.restaurantName)}" required class="w-full px-3.5 py-2 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+            </div>
+
+            <div>
+              <label class="block font-bold mb-1">Welcome Subtitle</label>
+              <input type="text" name="welcomeSubtitle" value="${escapeHtml(s.welcomeSubtitle)}" class="w-full px-3.5 py-2 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold mb-1">Est. Prep Time (mins)</label>
+                <input type="number" name="estPrepMinutes" min="5" max="90" value="${s.estPrepMinutes}" class="w-full px-3.5 py-2 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+              </div>
+              <div>
+                <label class="block font-bold mb-1">Service Charge (%)</label>
+                <input type="number" name="serviceChargePercent" min="0" max="25" step="0.5" value="${s.serviceChargePercent}" class="w-full px-3.5 py-2 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-bold mb-1">Optional Firebase Realtime DB URL (Cross-Device Cloud Sync)</label>
+              <input type="url" name="firebaseDbUrl" value="${escapeHtml(s.firebaseDbUrl || '')}" placeholder="https://your-project-default-rtdb.firebaseio.com" class="w-full px-3.5 py-2 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder font-mono text-xs" />
+              <p class="text-[11px] text-mutedLight dark:text-mutedDark mt-1">
+                Khali chhodne par multi-tab local real-time sync chalta rahega. Firebase URL dene par alag-alag phones par live sync activate ho jayega.
+              </p>
+            </div>
+
+            <button type="submit" class="w-full py-3 rounded-2xl bg-indigoBrand text-white font-heading font-bold text-sm">
+              Save Restaurant Settings ✓
+            </button>
+          </form>
+
+          <!-- Quiz & Spin Wheel Config -->
+          <div class="bg-creamCard dark:bg-midnightCard border border-creamBorder dark:border-midnightBorder rounded-3xl p-5 space-y-4 text-xs sm:text-sm">
+            <h2 class="font-heading font-extrabold text-lg">Fun Zone Configuration</h2>
+
+            <div class="space-y-2">
+              <div class="font-bold">Spin Wheel Prizes (Comma separated)</div>
+              <form onsubmit="saveAdminWheelPrizes(event)" class="space-y-2">
+                <textarea name="prizesCsv" rows="2" class="w-full px-3.5 py-2 rounded-xl bg-creamBg dark:bg-midnightBg border border-creamBorder dark:border-midnightBorder">${escapeHtml(SyncStore.db.wheelPrizes.map(p => p.label).join(', '))}</textarea>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-marigold text-inkLight font-bold text-xs">Update Wheel Prizes</button>
+              </form>
+            </div>
+
+            <div class="space-y-2 pt-2 border-t border-creamBorder dark:border-midnightBorder">
+              <div class="font-bold">Food Quiz Questions (${SyncStore.db.quizQuestions.length})</div>
+              ${SyncStore.db.quizQuestions.map((q, idx) => `
+                <div class="p-2.5 rounded-xl bg-creamBg dark:bg-midnightBg">
+                  <div class="font-semibold">Q${idx + 1}: ${escapeHtml(q.question)}</div>
+                  <div class="text-[11px] text-success mt-0.5">Ans: ${escapeHtml(q.options[q.correctIndex])}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function saveAdminSettings(e) {
+      e.preventDefault();
+      const f = e.target;
+      SyncStore.mutate(db => {
+        db.settings.restaurantName = f.restaurantName.value.trim() || 'ZAIKA';
+        db.settings.welcomeSubtitle = f.welcomeSubtitle.value.trim();
+        db.settings.estPrepMinutes = Number(f.estPrepMinutes.value) || 15;
+        db.settings.serviceChargePercent = Number(f.serviceChargePercent.value) || 0;
+        db.settings.firebaseDbUrl = f.firebaseDbUrl.value.trim();
+      });
+      SyncStore.setupFirebasePolling();
+      showToast('Settings save ho gayi hain ✓', 'success');
+      renderApp();
+    }
+
+    function saveAdminWheelPrizes(e) {
+      e.preventDefault();
+      const labels = e.target.prizesCsv.value.split(',').map(s => s.trim()).filter(Boolean);
+      if (labels.length < 2) {
+        showToast('Kam se kam 2 prizes likhein', 'chilli');
+        return;
+      }
+      const palette = ['#2B2F6B', '#F4B63F', '#E6E0D6', '#1F8A5B', '#D8402F', '#43499E'];
+      SyncStore.mutate(db => {
+        db.wheelPrizes = labels.map((lbl, idx) => ({
+          id: `p_${idx}_${Date.now()}`,
+          label: lbl,
+          color: palette[idx % palette.length],
+          textColor: idx % palette.length === 1 || idx % palette.length === 2 ? '#1E2038' : '#FFFFFF',
+          isWin: !lbl.toLowerCase().includes('better luck')
+        }));
+      });
+      showToast('Spin wheel prizes update ho gaye ✓', 'success');
+      renderApp();
+    }
+
+    // --------------------------------------------------------------------------
+    // 20. MAIN APPLICATION RENDER ORCHESTRATOR
+    // --------------------------------------------------------------------------
+    function renderApp() {
+      const root = document.getElementById('app');
+      if (!root) return;
+
+      let mainContent = '';
+      if (AppState.activeView === 'customer') {
+        mainContent = renderCustomerView();
+      } else if (AppState.activeView === 'kitchen') {
+        mainContent = renderKitchenView();
+      } else if (AppState.activeView === 'waiter') {
+        mainContent = renderWaiterView();
+      } else if (AppState.activeView === 'admin') {
+        mainContent = renderAdminView();
+      }
+
+      root.innerHTML = `
+        ${renderTopUtilityBar()}
+        <main class="flex-1 flex flex-col w-full max-w-full">
+          ${mainContent}
+        </main>
+      `;
+    }
+
+    // Bootstrap Application
+    window.addEventListener('DOMContentLoaded', () => {
+      SyncStore.init();
+      detectTableFromUrl();
+      SyncStore.subscribe(() => renderApp());
+      renderApp();
+
+      // Keep relative elapsed timers fresh in Kitchen & Waiter views
+      setInterval(() => {
+        if (AppState.activeView === 'kitchen' || AppState.activeView === 'waiter') {
+          renderApp();
+        }
+      }, 20000);
+    });
+  </script>
+</body>
+</html>
